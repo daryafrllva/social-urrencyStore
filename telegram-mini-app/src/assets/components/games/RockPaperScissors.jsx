@@ -7,7 +7,7 @@ import GameResult from './components/game/GameResult';
 import PrizeModal from './components/game/PrizeModal';
 import './styles/game.css';
 
-// Конфигурация контракта (замените на свои значения)
+// Конфигурация контракта (замените на свои значе
 const CONTRACT_ADDRESS = "0x123..."; // Адрес вашего контракта
 const CONTRACT_ABI = [ /* Вставьте ABI вашего контракта */ ];
 
