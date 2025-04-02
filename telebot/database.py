@@ -75,6 +75,11 @@ def get_user(conn, user_id):
     return cursor.fetchone()
 
 
+def get_users(conn):
+    cursor = conn.cursor()
+    return cursor.execute('SELECT * FROM users').fetchall()
+
+
 def get_user_from_link(conn, user_link):
     """Получаем пользователя по username (ссылке)"""
     cursor = conn.cursor()
