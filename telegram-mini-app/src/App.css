@@ -1,3 +1,24 @@
+
+/* Стили для отображения баланса */
+.balance-display {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 18px;
+  font-weight: bold;
+  background: #f0f0f0;
+  padding: 8px 16px;
+  border-radius: 20px;
+}
+
+.balance-amount {
+  color: #2c3e50;
+}
+
+
+
+
+
 .app-container {
   text-align: center;
   padding: 20px;
