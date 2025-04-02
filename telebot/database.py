@@ -28,7 +28,8 @@ def create_tables(conn):
                 ''')
 
         for role in roles:
-            cursor.execute('''INSERT INTO roles(name) VALUES (?)''', (role,))
+            cursor.execute('''INSERT INTO roles(name) 
+            SELECT (?) WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name=?)''', (role, role))
 
         # Таблица пользователей
         cursor.execute('''

@@ -14,7 +14,8 @@ telebot.logger.setLevel(logging.DEBUG)
 init_db()
 transfers = dict()
 
-rating_size = 5  # определяет размер рейтингового списка
+constants = {'rating_size': 5,  # определяет размер рейтингового списка
+             'fake_bonus_time': 10}  # временная переменная, определяет время периода выдачи бонуса
 
 # Список товаров
 PRODUCTS = [
@@ -43,18 +44,29 @@ def word_for_count(nominative_singular: str = 'Джоуль',
 @bot.message_handler(commands=['start'])
 def start(message):
     conn = create_connection()
-    if conn:
+    if not get_user(conn, message.chat.id):
         add_user(conn, message.chat.id, message.from_user.username)
         update_balance(conn, message.chat.id, 100, 100)
         conn.close()
 
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    markup.add(types.KeyboardButton("✅ Согласиться"))
-    bot.send_message(message.chat.id, "🔐 Для использования бота необходимо согласиться на обработку данных.",
-                     reply_markup=markup)
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        markup.add(types.KeyboardButton("📄 Пользовательское соглашение"))
+        markup.add(types.KeyboardButton("✅ Принять"))
+        bot.send_message(message.chat.id, "Добро пожаловать!\n\n"
+                                          "🔐 Для использования бота необходимо принять пользовательское соглашение:",
+                         reply_markup=markup)
+    else:
+        bot.send_message(message.chat.id, 'Вход выполнен.')
+        show_menu(message)
 
 
-@bot.message_handler(func=lambda message: message.text == "✅ Согласиться" or message.text == 'Меню')
+@bot.message_handler(func=lambda message: message.text == "📄 Пользовательское соглашение")
+def show_document(message):
+    bot.send_document(message.chat.id, open('user_agreement.docx', 'rb'),
+                      caption="📄 Пользовательское соглашение")
+
+
+@bot.message_handler(func=lambda message: message.text == "✅ Принять" or message.text == 'Меню')
 def show_menu(message):
     conn = create_connection()
     user_role = get_user_role(conn, message.chat.id)
@@ -182,7 +194,7 @@ def rating(message):
         bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
         return
 
-    top_users = get_top_users(conn, rating_size)
+    top_users = get_top_users(conn, constants['rating_size'])
     user_rating_place = get_user_place_in_top(conn, message.chat.id)
     conn.close()
 
@@ -195,7 +207,7 @@ def rating(message):
         rating_text += f"{i}. @{username} : <b>{balance}</b> {word_for_count(count=balance)}\n"
 
     rating_text += f'\n\n...Вы занимаете <b>{user_rating_place}</b> место в рейтинге.' \
-        if user_rating_place > rating_size else ''
+        if user_rating_place > constants['rating_size'] else ''
 
     bot.send_message(message.chat.id, rating_text, parse_mode='html')
 
@@ -302,6 +314,34 @@ def take_fine_by_user_link(message):
     except ValueError:
         bot.send_message(message.chat.id, "❌ Неправильный формат ввода!"
                                           " Используйте: [@username] [сумма] [комментарий]")
+
+
+@bot.message_handler(func=lambda message: message.text == "⏱️ Сменить время бонуса")
+def change_bonus_time(message):
+    change_keyboard = types.InlineKeyboardMarkup(row_width=1)
+    cancel_button = types.InlineKeyboardButton('Отмена', callback_data='cancel')
+    change_keyboard.add(cancel_button)
+
+    word_minute = word_for_count("минута", "минуты", "минут", constants["fake_bonus_time"])
+
+    bot.send_message(message.chat.id, f'Текущий период зачисления: {constants["fake_bonus_time"]} {word_minute}.'
+                                      f'\n\nВведите новое время <b>в минутах</b> (число):',
+                     reply_markup=change_keyboard,
+                     parse_mode='html')
+    bot.register_next_step_handler(message, do_change_time)
+
+
+def do_change_time(message):
+    try:
+        constants['fake_bonus_time'] = int(message.text)
+        word_minute = word_for_count("минута", "минуты", "минут", constants["fake_bonus_time"])
+        bot.send_message(message.chat.id, f'Успешно! Теперь период зачисления бонуса: '
+                                          f'<b>{constants["fake_bonus_time"]} '
+                                          f'{word_minute}.</b>',
+                         parse_mode='html')
+    except ValueError:
+        bot.send_message(message.chat.id, "❌ Неправильный формат ввода! "
+                                          "Введите число без дополнительных знаков.")
 
 
 if __name__ == "__main__":
