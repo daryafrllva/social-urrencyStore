@@ -7,9 +7,9 @@ import GameResult from './components/game/GameResult';
 import PrizeModal from './components/game/PrizeModal';
 import './styles/game.css';
 
-// 
-const CONTRACT_ADDRESS = "0x123..."; 
-
+// Конфигурация контракта (замените на свои значения)
+const CONTRACT_ADDRESS = "0x123..."; // Адрес вашего контракта
+const CONTRACT_ABI = [ /* Вставьте ABI вашего контракта */ ];
 
 function App() {
   const [provider, setProvider] = useState(null);
@@ -22,6 +22,7 @@ function App() {
   const [showModal, setShowModal] = useState(false);
   const [prizeClaimed, setPrizeClaimed] = useState(false);
 
+  // Подключение кошелька
   const connectWallet = async () => {
     if (window.ethereum) {
       try {
