@@ -1,188 +1,279 @@
-import asyncio
 import telebot
-from telebot.async_telebot import AsyncTeleBot
 from telebot import types
-import random
-from database import get_or_create_user, update_user, get_all_users
+import sqlite3
+from database import create_connection, add_user, get_user, update_balance, get_top_users
 
-# Инициализация бота
-bot = AsyncTeleBot('YOUR_TELEGRAM_BOT_TOKEN')  # Замените на свой токен
+bot = telebot.TeleBot("7104621861:AAH4Aj9TSFVDzYlB14Wnw4dgxx9jUXJJbjc")
 
-# Фиксированные мемы
-MEMES = {
-    "meme1": {"image_url": "https://example.com/meme1.jpg", "price": 50, "caption": "Терапевт дуреет с этой прикормки"},
-    "meme2": {"image_url": "https://example.com/meme2.jpg", "price": 75, "caption": "Когда выходишь из магазина без покупок"},
-    "meme3": {"image_url": "https://example.com/meme3.jpg", "price": 100, "caption": "О Господи, это новая эмоция?!"},
-    "meme4": {"image_url": "https://example.com/meme4.jpg", "price": 80, "caption": "Бу! Испугался?! Не бойся"},
-}
+# Инициализация базы данных при запуске
+from database import init_db
 
-# Словарь для хранения состояний пользователей
-user_states = {}
+init_db()
 
-# Команда /start
+
+
 @bot.message_handler(commands=['start'])
-async def start(message):
+def start(message):
+    conn = create_connection()
+    if conn:
+        add_user(conn, message.from_user.id, message.from_user.username)
+        conn.close()
+
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    button_accept = types.KeyboardButton("✅ Согласиться")
+    markup.add(button_accept)
+
+    bot.send_message(
+        message.chat.id,
+        "🔐 Для использования бота необходимо согласиться на обработку данных.",
+        reply_markup=markup
+    )
+
+
+# Обработчик кнопки "Согласиться"
+@bot.message_handler(func=lambda message: message.text == "✅ Согласиться")
+def show_menu(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(types.KeyboardButton("Баланс"), types.KeyboardButton("Задания"))
-    markup.add(types.KeyboardButton("Перевод"), types.KeyboardButton("Рейтинг"))
-    markup.add(types.KeyboardButton("Магазин"))
+    btn1 = types.KeyboardButton("💰 Баланс")
+    btn2 = types.KeyboardButton("📋 Задания")
+    btn3 = types.KeyboardButton("🔄 Перевод")
+    btn4 = types.KeyboardButton("🏆 Рейтинг")
+    btn5 = types.KeyboardButton("🛒 Магазин")
+    markup.add(btn1, btn2, btn3, btn4, btn5)
 
-    await bot.send_message(message.chat.id, "Выберите действие:", reply_markup=markup)
+    bot.send_message(message.chat.id, "👇 Выберите действие:", reply_markup=markup)
 
-# Обработка кнопок
-@bot.message_handler(func=lambda message: True)
-async def handle_buttons(message):
-    user_id = message.from_user.id
-    user_data = get_or_create_user(user_id)
 
-    if message.text == "Баланс":
-        active_balance = user_data["active_balance"]
-        passive_balance = user_data["passive_balance"]
-        await bot.send_message(message.chat.id, f"Активный счет: {active_balance} монет\nПассивный счет: {passive_balance} монет")
+# Обработчик кнопки "Баланс"
+@bot.message_handler(func=lambda message: message.text == "💰 Баланс")
+def balance(message):
+    conn = create_connection()
+    if conn:
+        user = get_user(conn, message.from_user.id)
+        conn.close()
 
-    elif message.text == "Задания":
-        await bot.send_message(message.chat.id, "Тут что-то будет", reply_markup=types.InlineKeyboardMarkup().add(
-            types.InlineKeyboardButton("Открыть задания", url="https://example.com")
-        ))
-
-    elif message.text == "Перевод":
-        await bot.send_message(message.chat.id, "Введите ID получателя и сумму через пробел:")
-        user_states[user_id] = "waiting_for_transfer"
-
-    elif message.text == "Рейтинг":
-        rating = get_all_users()
-        rating.sort(key=lambda x: x["balance"], reverse=True)
-
-        rating_message = "Топ пользователей по активным монеткам:\n"
-        for i, user in enumerate(rating[:5], start=1):
-            rating_message += f"{i}. {user['name']} - {user['balance']} монет\n"
-
-        await bot.send_message(message.chat.id, rating_message)
-
-    elif message.text == "Магазин":
-        shop_message = "Доступные мемы:\n"
-        for meme_id, meme_info in MEMES.items():
-            shop_message += f"{meme_id}: {meme_info['caption']} - {meme_info['price']} монет\n"
-
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        for meme_id in MEMES.keys():
-            markup.add(types.KeyboardButton(f"Купить {meme_id}"))
-        markup.add(types.KeyboardButton("Выйти в меню"))
-        markup.add(types.KeyboardButton("Посмотреть купленные мемы"))
-
-        await bot.send_message(message.chat.id, shop_message, reply_markup=markup)
-
-    elif message.text == "Выйти в меню":
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add(types.KeyboardButton("Баланс"), types.KeyboardButton("Задания"))
-        markup.add(types.KeyboardButton("Перевод"), types.KeyboardButton("Рейтинг"))
-        markup.add(types.KeyboardButton("Магазин"))
-
-        await bot.send_message(message.chat.id, "Вы вернулись в главное меню.", reply_markup=markup)
-
-    elif message.text == "Посмотреть купленные мемы":
-        purchased_memes = user_data.get("purchased_memes", [])
-        if not purchased_memes:
-            await bot.send_message(message.chat.id, "У вас пока нет купленных мемов.")
-            return
-
-        response = "Ваши купленные мемы:\n"
-        for meme_id in purchased_memes:
-            meme_info = MEMES[meme_id]
-            response += f"- {meme_info['caption']}\n"
-
-        await bot.send_message(message.chat.id, response)
-
-# Обработка перевода между пользователями
-@bot.message_handler(func=lambda message: user_states.get(message.from_user.id) == "waiting_for_transfer")
-async def process_transfer(message):
-    try:
-        parts = message.text.split()
-        if len(parts) != 2 or not parts[0].isdigit() or not parts[1].isdigit():
-            await bot.send_message(message.chat.id, "Некорректный формат. Введите ID получателя и сумму через пробел.")
-            return
-
-        recipient_id = int(parts[0])
-        amount = int(parts[1])
-
-        sender_data = get_or_create_user(message.from_user.id)
-        recipient_data = get_or_create_user(recipient_id)
-
-        if sender_data["passive_balance"] >= amount > 0:
-            sender_data["passive_balance"] -= amount
-            recipient_data["active_balance"] += amount
-
-            update_user(sender_data["user_id"], {"passive_balance": sender_data["passive_balance"]})
-            update_user(recipient_data["user_id"], {"active_balance": recipient_data["active_balance"]})
-
-            await bot.send_message(message.chat.id, f"Вы выполнили перевод {amount} монет пользователю {recipient_id}.")
-            await bot.send_message(recipient_id, f"Вы получили перевод {amount} монет от пользователя {message.from_user.id}.")
-        else:
-            await bot.send_message(message.chat.id, "Недостаточно средств на пассивном счете или некорректная сумма.")
-    except Exception as e:
-        await bot.send_message(message.chat.id, "Ошибка при переводе. Попробуйте снова.")
-    finally:
-        user_states.pop(message.from_user.id, None)
-
-# Покупка мемов
-@bot.message_handler(func=lambda message: message.text.startswith("Купить "))
-async def buy_meme(message):
-    user_id = message.from_user.id
-    user_data = get_or_create_user(user_id)
-
-    meme_id = message.text.split()[1]
-    if meme_id in MEMES:
-        meme_price = MEMES[meme_id]["price"]
-        if user_data["active_balance"] >= meme_price:
-            user_data["active_balance"] -= meme_price
-            purchased_memes = user_data["purchased_memes"]
-            purchased_memes.append(meme_id)
-
-            update_user(user_id, {
-                "active_balance": user_data["active_balance"],
-                "purchased_memes": purchased_memes
-            })
-
-            await bot.send_photo(
+        if user:
+            bot.send_message(
                 message.chat.id,
-                photo=MEMES[meme_id]["image_url"],
-                caption=f"Вы успешно купили мем {meme_id} за {meme_price} монет!\n{MEMES[meme_id]['caption']}",
+                f"Ваши балансы:\n\n"
+                f"Активный: {user[2]} баллов\n"
+                f"Пассивный: {user[3]} баллов"
             )
-            await bot.send_message(message.chat.id, "Спасибо за покупку! 😊")
-
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            markup.add(types.KeyboardButton("Выйти в меню"))
-            await bot.send_message(message.chat.id, "Чтобы вернуться в главное меню, нажмите кнопку ниже.", reply_markup=markup)
         else:
-            await bot.send_message(message.chat.id, "Недостаточно средств на активном счете.")
+            bot.send_message(message.chat.id, "❌ Пользователь не найден!")
+
+
+# Обработчик кнопки "Задания"
+@bot.message_handler(func=lambda message: message.text == "📋 Задания")
+def tasks(message):
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("Перейти к заданиям", url="https://example.com/tasks"))
+    bot.send_message(message.chat.id, "Задания доступны в нашем веб-приложении:", reply_markup=markup)
+
+
+# Обработчик кнопки "Перевод"
+@bot.message_handler(func=lambda message: message.text == "🔄 Перевод")
+def transfer(message):
+    msg = bot.send_message(message.chat.id,
+                           "Введите ID получателя и сумму перевода (через пробел):\nПример: 123456789 100")
+    bot.register_next_step_handler(msg, process_transfer_amount)
+
+
+def process_transfer_amount(message):
+    try:
+        user_id = message.from_user.id
+        recipient_id, amount = message.text.split()
+        recipient_id = int(recipient_id)
+        amount = int(amount)
+
+        if amount <= 0:
+            bot.send_message(message.chat.id, "❌ Сумма должна быть положительной!")
+            return
+
+        conn = create_connection()
+        if not conn:
+            bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
+            return
+
+        # Проверяем существование пользователей
+        sender = get_user(conn, user_id)
+        recipient = get_user(conn, recipient_id)
+
+        if not sender or not recipient:
+            bot.send_message(message.chat.id, "❌ Один из пользователей не найден!")
+            conn.close()
+            return
+
+        if sender[3] < amount:  # passive_balance
+            bot.send_message(message.chat.id, "❌ Недостаточно средств на пассивном балансе!")
+            conn.close()
+            return
+
+        # Сохраняем данные для перевода
+        bot.send_message(
+            message.chat.id,
+            f"Готово к переводу:\n"
+            f"Получатель: @{recipient[1]}\n"
+            f"Сумма: {amount} баллов\n\n"
+            "Выберите тип перевода:",
+            reply_markup=create_transfer_buttons()
+        )
+
+
+        # Сохраняем данные в глобальной переменной (временное решение)
+        bot.transfer_data = {
+            "sender_id": user_id,
+            "recipient_id": recipient_id,
+            "amount": amount
+        }
+
+        conn.close()
+
+    except ValueError:
+        bot.send_message(message.chat.id, "❌ Неправильный формат! Используйте: ID_получателя СУММА")
+
+
+def create_transfer_buttons():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    btn1 = types.KeyboardButton("📝 С текстом")
+    btn2 = types.KeyboardButton("📨 Без текста")
+    markup.add(btn1, btn2)
+    return markup
+
+
+@bot.message_handler(func=lambda message: message.text in ["📝 С текстом", "📨 Без текста"])
+def process_transfer_type(message):
+    if not hasattr(bot, 'transfer_data'):
+        bot.send_message(message.chat.id, "❌ Ошибка: данные перевода утеряны")
+        return
+
+    if message.text == "📝 С текстом":
+        msg = bot.send_message(message.chat.id, "📝 Введите текст сообщения для получателя:")
+        bot.register_next_step_handler(msg, complete_transfer_with_text)
     else:
-        await bot.send_message(message.chat.id, "Такого мема нет в магазине.")
+        complete_transfer_without_text(message)
 
-# Ежедневный бонус
-async def daily_bonus():
-    while True:
-        all_users = get_all_users()
-        for user in all_users:
-            user_id = user["user_id"]
-            user_data = get_or_create_user(user_id)
 
-            if user_data["last_daily_bonus"] != str(asyncio.get_event_loop().time()):
-                user_data["passive_balance"] += 100
-                user_data["last_daily_bonus"] = str(asyncio.get_event_loop().time())
+def complete_transfer_with_text(message):
+    if not hasattr(bot, 'transfer_data'):
+        bot.send_message(message.chat.id, "❌ Ошибка: данные перевода утеряны")
+        return
 
-                update_user(user_id, {
-                    "passive_balance": user_data["passive_balance"],
-                    "last_daily_bonus": user_data["last_daily_bonus"]
-                })
+    conn = create_connection()
+    if not conn:
+        bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
+        return
 
-                await bot.send_message(user_id, "Вы получили регулярный подарок +100 монет на пассивный счет!")
-        await asyncio.sleep(20)  # Каждые 20 секунд
+    data = bot.transfer_data
+    sender_id = data["sender_id"]
+    recipient_id = data["recipient_id"]
+    amount = data["amount"]
 
-# Запуск бота
-async def main():
-    await asyncio.gather(bot.infinity_polling(), daily_bonus())
+    # Обновляем балансы
+    sender = get_user(conn, sender_id)
+    recipient = get_user(conn, recipient_id)
+
+    new_sender_passive = sender[3] - amount
+    new_recipient_active = recipient[2] + amount
+
+    update_balance(conn, sender_id, passive_balance=new_sender_passive)
+    update_balance(conn, recipient_id, active_balance=new_recipient_active)
+
+    # Отправляем сообщение получателю
+    try:
+        bot.send_message(
+            recipient_id,
+            f"💸 Вам перевели {amount} баллов!\n"
+            f"Сообщение от отправителя:\n\n{message.text}"
+        )
+    except:
+        pass  # Если не удалось отправить
+
+    # Возвращаем меню
+    show_menu(message)
+    bot.send_message(
+        message.chat.id,
+        f"✅ Перевод выполнен!\n"
+        f"Новый пассивный баланс: {new_sender_passive}"
+    )
+
+    del bot.transfer_data  # Удаляем временные данные
+    conn.close()
+
+
+def complete_transfer_without_text(message):
+    if not hasattr(bot, 'transfer_data'):
+        bot.send_message(message.chat.id, "❌ Ошибка: данные перевода утеряны")
+        return
+
+    conn = create_connection()
+    if not conn:
+        bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
+        return
+
+    data = bot.transfer_data
+    sender_id = data["sender_id"]
+    recipient_id = data["recipient_id"]
+    amount = data["amount"]
+
+    # Обновляем балансы
+    sender = get_user(conn, sender_id)
+    recipient = get_user(conn, recipient_id)
+
+    new_sender_passive = sender[3] - amount
+    new_recipient_active = recipient[2] + amount
+
+    update_balance(conn, sender_id, passive_balance=new_sender_passive)
+    update_balance(conn, recipient_id, active_balance=new_recipient_active)
+
+    # Отправляем сообщение получателю
+    try:
+        bot.send_message(recipient_id, f"💸 Вам перевели {amount} баллов!")
+    except:
+        pass  # Если не удалось отправить
+
+    # Возвращаем меню
+    show_menu(message)
+    bot.send_message(
+        message.chat.id,
+        f"✅ Перевод выполнен!\n"
+        f"Новый пассивный баланс: {new_sender_passive}"
+    )
+
+    del bot.transfer_data  # Удаляем временные данные
+    conn.close()
+
+
+# Обработчик кнопки "Рейтинг"
+@bot.message_handler(func=lambda message: message.text == "🏆 Рейтинг")
+def rating(message):
+    conn = create_connection()
+    if not conn:
+        bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
+        return
+
+    top_users = get_top_users(conn)
+    conn.close()
+
+
+    if not top_users:
+        bot.send_message(message.chat.id, "🏆 Рейтинг пока пуст!")
+        return
+
+    rating_text = "🏆 Топ-5 пользователей:\n\n"
+    for i, (username, balance) in enumerate(top_users, 1):
+        rating_text += f"{i}. @{username} — {balance} баллов\n"
+
+    bot.send_message(message.chat.id, rating_text)
+
+
+# Обработчик кнопки "Магазин"
+@bot.message_handler(func=lambda message: message.text == "🛒 Магазин")
+def shop(message):
+    bot.send_message(message.chat.id, "🛍 Магазин скоро откроется! Следите за обновлениями.")
+
+
 
 if __name__ == "__main__":
-    from database import create_users_table
-    create_users_table()  # Создаем таблицу пользователей при запуске
-    asyncio.run(main())
+    print("Бот запущен...")
+    bot.polling()
