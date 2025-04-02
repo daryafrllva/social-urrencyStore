@@ -114,6 +114,16 @@ def get_top_users(conn, limit=5):
     return cursor.fetchall()
 
 
+# получить место пользователя в рейтинге
+def get_user_place_in_top(conn, user_id):
+    cursor = conn.cursor()
+    return cursor.execute('''
+    SELECT COUNT(*) + 1 AS position
+    FROM users
+    WHERE active_balance > (SELECT active_balance FROM users WHERE user_id=?);
+    ''', (user_id,)).fetchone()[0]
+
+
 def add_purchase(conn, user_id, product_name, product_price):
     """Добавляем запись о покупке"""
     cursor = conn.cursor()
@@ -125,7 +135,7 @@ def add_purchase(conn, user_id, product_name, product_price):
 
 
 def get_purchase_history(conn, user_id, limit=5):
-    """Получаем историю покупок пользователя"""
+    """Получаем историю последних {limit} покупок пользователя"""
     cursor = conn.cursor()
     cursor.execute('''
     SELECT product_name, product_price, purchase_date 
@@ -137,20 +147,20 @@ def get_purchase_history(conn, user_id, limit=5):
     return cursor.fetchall()
 
 
-def get_roles(conn):
+def get_roles(conn):  # получить список ролей (id, название)
     cursor = conn.cursor()
     return {role[0]: role[1] for role in cursor.execute("""SELECT * FROM roles""").fetchall()}
 
 
-def get_role_id(conn, role_name: str):
+def get_role_id(conn, role_name: str):  # преобразовать название роли в её id
     cursor = conn.cursor()
     return cursor.execute("""SELECT id FROM roles WHERE name=?""", (role_name,)).fetchone()
 
 
-def get_role_name(conn, role: int):
+def get_role_name(conn, role: int):  # получить текстовое название роли
     cursor = conn.cursor()
     return cursor.execute("""SELECT name FROM roles WHERE id=?""", (role,)).fetchone()
 
 
-def get_user_role(conn, user_id: int):
+def get_user_role(conn, user_id: int):  # получить текстовое название роли пользователя
     return get_role_name(conn, get_user(conn, user_id)[4])[0]
