@@ -1,8 +1,8 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import './index.css';
-import App from './App.jsx';
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App.jsx'
 
+<<<<<<< HEAD
 // Подключаем шрифт Montserrat
 import '@fontsource/montserrat/400.css'; // Regular
 import '@fontsource/montserrat/500.css'; // Medium
@@ -15,7 +15,10 @@ if (!rootElement) {
 }
 
 createRoot(rootElement).render(
+=======
+createRoot(document.getElementById('root')).render(
+>>>>>>> 0d3f2f89aac5f493915c50cc02642fd628ca6d54
   <StrictMode>
     <App />
-  </StrictMode>
-);
+  </StrictMode>,
+)

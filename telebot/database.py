@@ -17,6 +17,18 @@ def create_tables(conn):
     """Создаём таблицы, если их нет"""
     try:
         cursor = conn.cursor()
+        roles = ['пользователь', 'администратор']
+
+        # Таблица ролей
+        cursor.execute('''
+                        CREATE TABLE IF NOT EXISTS roles (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            name TEXT
+                        )
+                ''')
+
+        for role in roles:
+            cursor.execute('''INSERT INTO roles(name) VALUES (?)''', (role,))
 
         # Таблица пользователей
         cursor.execute('''
@@ -24,7 +36,21 @@ def create_tables(conn):
             user_id INTEGER PRIMARY KEY,
             username TEXT,
             active_balance INTEGER DEFAULT 0,
-            passive_balance INTEGER DEFAULT 0
+            passive_balance INTEGER DEFAULT 0,
+            role INTEGER DEFAULT 1,
+            FOREIGN KEY (role) REFERENCES roles (id)
+        )
+        ''')
+
+        # Таблица покупок
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS purchases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            product_name TEXT,
+            product_price INTEGER,
+            purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (user_id)
         )
         ''')
 
@@ -49,9 +75,9 @@ def get_user(conn, user_id):
 
 
 def get_user_from_link(conn, user_link):
+    """Получаем пользователя по username (ссылке)"""
     cursor = conn.cursor()
-    return cursor.execute('''SELECT * FROM users WHERE username=?''', (user_link.strip('@'),)).fetchone()
-
+    return cursor.execute('SELECT * FROM users WHERE username=?', (user_link.strip('@'),)).fetchone()
 
 
 def add_user(conn, user_id, username):
@@ -73,11 +99,11 @@ def update_balance(conn, user_id, active_balance=None, passive_balance=None):
     conn.commit()
 
 
-def do_transfer(conn, user, recipient, amount):
-    cur = conn.cursor()
-    print(user, recipient, amount)
-    cur.execute("""UPDATE users SET passive_balance=? WHERE user_id=?""", (user[3] - amount, user[0]))
-    cur.execute("""UPDATE users SET active_balance=? WHERE user_id=?""", (recipient[2] + amount, recipient[0]))
+def do_transfer(conn, sender, recipient, amount):
+    """Выполняем перевод средств между пользователями"""
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET passive_balance=? WHERE user_id=?", (sender[3] - amount, sender[0]))
+    cursor.execute("UPDATE users SET active_balance=? WHERE user_id=?", (recipient[2] + amount, recipient[0]))
     conn.commit()
 
 
@@ -86,3 +112,45 @@ def get_top_users(conn, limit=5):
     cursor = conn.cursor()
     cursor.execute('SELECT username, active_balance FROM users ORDER BY active_balance DESC LIMIT ?', (limit,))
     return cursor.fetchall()
+
+
+def add_purchase(conn, user_id, product_name, product_price):
+    """Добавляем запись о покупке"""
+    cursor = conn.cursor()
+    cursor.execute('''
+    INSERT INTO purchases (user_id, product_name, product_price)
+    VALUES (?, ?, ?)
+    ''', (user_id, product_name, product_price))
+    conn.commit()
+
+
+def get_purchase_history(conn, user_id, limit=5):
+    """Получаем историю покупок пользователя"""
+    cursor = conn.cursor()
+    cursor.execute('''
+    SELECT product_name, product_price, purchase_date 
+    FROM purchases 
+    WHERE user_id = ?
+    ORDER BY purchase_date DESC
+    LIMIT ?
+    ''', (user_id, limit))
+    return cursor.fetchall()
+
+
+def get_roles(conn):
+    cursor = conn.cursor()
+    return {role[0]: role[1] for role in cursor.execute("""SELECT * FROM roles""").fetchall()}
+
+
+def get_role_id(conn, role_name: str):
+    cursor = conn.cursor()
+    return cursor.execute("""SELECT id FROM roles WHERE name=?""", (role_name,)).fetchone()
+
+
+def get_role_name(conn, role: int):
+    cursor = conn.cursor()
+    return cursor.execute("""SELECT name FROM roles WHERE id=?""", (role,)).fetchone()
+
+
+def get_user_role(conn, user_id: int):
+    return get_role_name(conn, get_user(conn, user_id)[4])[0]
