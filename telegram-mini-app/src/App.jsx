@@ -1,56 +1,38 @@
 import { useState, useEffect } from 'react';
-import { ethers } from 'ethers';
-import ConnectWallet from './components/auth/ConnectWallet';
-import UserProfile from './components/auth/UserProfile';
-import GameControls from './components/game/GameControls';
-import GameResult from './components/game/GameResult';
-import PrizeModal from './components/game/PrizeModal';
-import './styles/game.css';
+// import { WebApp } from '@twa-dev/sdk'; // Закомментировано для работы в вебе
+import UserProfile from "../components/auth/UserProfile";
+import "../styles/game.css";
+import "../components/game/RockPaperScissors";
 
-// 
-const CONTRACT_ADDRESS = "0x123..."; 
-
-
-function App() {
-  const [provider, setProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
+export default function RockPaperScissors() {
   const [account, setAccount] = useState(null);
-  const [contract, setContract] = useState(null);
   const [tokenBalance, setTokenBalance] = useState("0");
   const [result, setResult] = useState(null);
   const [showPrize, setShowPrize] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [prizeClaimed, setPrizeClaimed] = useState(false);
 
-  const connectWallet = async () => {
-    if (window.ethereum) {
-      try {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const accounts = await provider.send("eth_requestAccounts", []);
-        const signer = provider.getSigner();
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-        
-        setProvider(provider);
-        setSigner(signer);
-        setAccount(accounts[0]);
-        setContract(contract);
-        
-        updateTokenBalance();
-      } catch (error) {
-        console.error("Error connecting wallet:", error);
-      }
-    } else {
-      alert("Please install MetaMask!");
-    }
-  };
+  // Инициализация Telegram WebApp - закомментировано для веба
+  useEffect(() => {
+    // WebApp.ready(); // Закомментировано для веба
+    // WebApp.expand(); // Закомментировано для веба
 
-  // Обновление баланса токенов
-  const updateTokenBalance = async () => {
-    if (contract && account) {
-      const balance = await contract.balanceOf(account);
-      setTokenBalance(ethers.utils.formatUnits(balance, 18));
-    }
-  };
+    // Получаем данные пользователя из Telegram - заменим на заглушку для веба
+    // if (WebApp.initDataUnsafe?.user) {
+    //   const tgUser = WebApp.initDataUnsafe.user;
+    //   setAccount({
+    //     address: tgUser.id.toString(),
+    //     username: tgUser.username || `user_${tgUser.id}`
+    //   });
+    // }
+
+    // Для веба временно создадим фейковые данные пользователя
+    setAccount({
+      address: 'demo', // Заглушка для адреса
+      username: 'demo_user' // Заглушка для имени пользователя
+    });
+
+  }, []);
 
   // Обработка выбора игрока
   const handleChoice = (playerChoice) => {
@@ -60,6 +42,9 @@ function App() {
     
     setResult({ playerChoice, computerChoice, gameResult });
     setShowPrize(gameResult === 'Win');
+
+    // Для веба, просто убираем все, что связано с кнопками Telegram
+    // В реальном вебе нужно будет добавить кнопку вручную, если это необходимо
   };
 
   // Определение победителя
@@ -80,47 +65,41 @@ function App() {
     setResult(null);
     setShowPrize(false);
     setPrizeClaimed(false);
+    // Закомментируем любые действия с Telegram
+    // WebApp.MainButton.hide(); // Закомментировано для веба
   };
 
   // Запрос награды
-  const claimPrize = async () => {
-    try {
-      const tx = await contract.claimTo(account, ethers.utils.parseUnits("10", 18));
-      await tx.wait();
-      setPrizeClaimed(true);
-      updateTokenBalance();
-      setShowModal(false);
-      alert('Prize claimed successfully!');
-    } catch (error) {
-      console.error("Error claiming prize:", error);
-      alert('Failed to claim prize: ' + error.message);
-    }
+  const claimPrize = () => {
+    setShowModal(true);
+    // Закомментируем любые действия с Telegram
+    // WebApp.MainButton.hide(); // Закомментировано для веба
   };
 
-  // Слушатель изменения аккаунта
-  useEffect(() => {
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts) => {
-        setAccount(accounts[0] || null);
-        if (accounts[0]) updateTokenBalance();
-      });
-    }
-  }, []);
+  // Подтверждение получения награды
+  const confirmClaim = () => {
+    setPrizeClaimed(true);
+    setTokenBalance(prev => (parseFloat(prev) + 10).toString());
+    setShowModal(false);
+
+    // Для веба можно оставить этот вызов или просто убрать
+    // WebApp.sendData(JSON.stringify({
+    //   action: 'prize_claimed',
+    //   amount: 10,
+    //   userId: WebApp.initDataUnsafe.user.id
+    // })); // Закомментировано для веба
+  };
 
   return (
     <div className="game-container">
       {!account ? (
-        <ConnectWallet onConnect={connectWallet} />
+        <ConnectWallet onConnect={() => setAccount({ address: 'demo', username: 'demo' })} />
       ) : (
         <>
           <UserProfile 
             account={account} 
             balance={tokenBalance}
-            onDisconnect={() => {
-              setAccount(null);
-              setProvider(null);
-              setSigner(null);
-            }}
+            onDisconnect={() => setAccount(null)} // Убираем WebApp.close() для веба
           />
 
           {!result ? (
@@ -130,15 +109,14 @@ function App() {
               result={result} 
               onReset={resetGame}
               showPrize={showPrize && !prizeClaimed}
-              onClaimPrize={() => setShowModal(true)}
+              onClaimPrize={claimPrize}
             />
           )}
 
           {showModal && (
             <PrizeModal
               onClose={() => setShowModal(false)}
-              onConfirm={claimPrize}
-              loading={false}
+              onConfirm={confirmClaim}
             />
           )}
         </>
@@ -154,5 +132,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
