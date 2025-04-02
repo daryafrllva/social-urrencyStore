@@ -1,0 +1,157 @@
+.app-container {
+    text-align: center;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .app-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f4f4f4; /* Светлый фон */
+    font-family: Arial, sans-serif;
+  }
+  
+  /* Стиль для главного экрана */
+  .home-screen {
+    text-align: center;
+    padding: 20px;
+    border: 2px solid #4fa3e5; /* Голубая рамка */
+    border-radius: 10px; /* Закруглённые углы */
+    background-color: #ffffff;
+    width: 300px; /* Ширина квадратного контейнера */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Тень */
+  }
+  
+  /* Стиль для заголовка */
+  .home-screen h1 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: #333;
+  }
+  
+  /* Стиль для кнопки */
+  .start-game-button {
+    background-color: #4fa3e5; /* Голубой цвет */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  /* Эффект при наведении на кнопку */
+  .start-game-button:hover {
+    background-color: #357ba1; /* Более тёмный голубой при наведении */
+  }
+  
+  /* Стиль для компонента игры */
+  /* Общие стили для игры */
+.game-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: center;
+  font-family: Arial, sans-serif;
+}
+
+/* Кнопки выбора */
+.choices-container {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin: 30px 0;
+}
+
+.choice-button {
+  font-size: 2rem;
+  padding: 15px;
+  border: none;
+  border-radius: 10px;
+  background: #f0f0f0;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.choice-button:hover {
+  transform: scale(1.1);
+  background: #e0e0e0;
+}
+
+/* Результат */
+.game-result {
+  margin-top: 20px;
+}
+
+.result-победа { color: #2ecc71; }
+.result-поражение { color: #e74c3c; }
+.result-ничья { color: #3498db; }
+
+/* Кнопки действий */
+.action-buttons {
+  margin-top: 30px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.reset-button, .prize-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.reset-button {
+  background: #3498db;
+  color: white;
+}
+
+.prize-button {
+  background: #f39c12;
+  color: white;
+}
+
+/* Модальное окно */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: white;
+  padding: 25px;
+  border-radius: 10px;
+  max-width: 400px;
+  width: 90%;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.confirm-button {
+  background: #2ecc71;
+  color: white;
+}
+
+.cancel-button {
+  background: #e74c3c;
+  color: white;
+}
