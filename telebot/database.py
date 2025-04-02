@@ -48,6 +48,12 @@ def get_user(conn, user_id):
     return cursor.fetchone()
 
 
+def get_user_from_link(conn, user_link):
+    cursor = conn.cursor()
+    return cursor.execute('''SELECT * FROM users WHERE username=?''', (user_link.strip('@'),)).fetchone()
+
+
+
 def add_user(conn, user_id, username):
     """Добавляем нового пользователя"""
     cursor = conn.cursor()
@@ -64,6 +70,14 @@ def update_balance(conn, user_id, active_balance=None, passive_balance=None):
         cursor.execute('UPDATE users SET active_balance = ? WHERE user_id = ?', (active_balance, user_id))
     if passive_balance is not None:
         cursor.execute('UPDATE users SET passive_balance = ? WHERE user_id = ?', (passive_balance, user_id))
+    conn.commit()
+
+
+def do_transfer(conn, user, recipient, amount):
+    cur = conn.cursor()
+    print(user, recipient, amount)
+    cur.execute("""UPDATE users SET passive_balance=? WHERE user_id=?""", (user[3] - amount, user[0]))
+    cur.execute("""UPDATE users SET active_balance=? WHERE user_id=?""", (recipient[2] + amount, recipient[0]))
     conn.commit()
 
 

@@ -1,22 +1,34 @@
+import logging
+
 import telebot
 from telebot import types
-import sqlite3
-from database import create_connection, add_user, get_user, update_balance, get_top_users
 
-bot = telebot.TeleBot("7104621861:AAH4Aj9TSFVDzYlB14Wnw4dgxx9jUXJJbjc")
+from database import create_connection, add_user, get_user, update_balance, get_top_users, get_user_from_link, do_transfer
 
+bot = telebot.TeleBot("7714684338:AAEynrLWSJNoMWcMgWTvZIOakF_pFc4WZ6s")
+logger = telebot.logger
+telebot.logger.setLevel(logging.DEBUG)  # дебаггер в консоли (опционально)
 # Инициализация базы данных при запуске
 from database import init_db
 
 init_db()
+transfers = dict()
 
+menu_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+btn1 = types.KeyboardButton("💰 Баланс")
+btn2 = types.KeyboardButton("📋 Задания")
+btn3 = types.KeyboardButton("🔄 Перевод")
+btn4 = types.KeyboardButton("🏆 Рейтинг")
+btn5 = types.KeyboardButton("🛒 Магазин")
+menu_keyboard.add(btn1, btn2, btn3, btn4, btn5)
 
 
 @bot.message_handler(commands=['start'])
 def start(message):
     conn = create_connection()
     if conn:
-        add_user(conn, message.from_user.id, message.from_user.username)
+        add_user(conn, message.chat.id, message.from_user.username)
+        update_balance(conn, message.chat.id, 100, 100)
         conn.close()
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
@@ -33,15 +45,12 @@ def start(message):
 # Обработчик кнопки "Согласиться"
 @bot.message_handler(func=lambda message: message.text == "✅ Согласиться")
 def show_menu(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    btn1 = types.KeyboardButton("💰 Баланс")
-    btn2 = types.KeyboardButton("📋 Задания")
-    btn3 = types.KeyboardButton("🔄 Перевод")
-    btn4 = types.KeyboardButton("🏆 Рейтинг")
-    btn5 = types.KeyboardButton("🛒 Магазин")
-    markup.add(btn1, btn2, btn3, btn4, btn5)
+    bot.send_message(message.chat.id, "👇 Выберите действие:", reply_markup=menu_keyboard)
 
-    bot.send_message(message.chat.id, "👇 Выберите действие:", reply_markup=markup)
+
+@bot.callback_query_handler(lambda call: call.data == 'get_menu')
+def get_menu(call):
+    bot.send_message(call.message.chat.id, "👇 Выберите действие:", reply_markup=menu_keyboard)
 
 
 # Обработчик кнопки "Баланс"
@@ -75,16 +84,15 @@ def tasks(message):
 @bot.message_handler(func=lambda message: message.text == "🔄 Перевод")
 def transfer(message):
     msg = bot.send_message(message.chat.id,
-                           "Введите ID получателя и сумму перевода (через пробел):\nПример: 123456789 100")
+                           "Введите ссылку на пользователя, сумму перевода и комментарий (по желанию) через пробел:\nПример: @example 100 Спасибо!)")
     bot.register_next_step_handler(msg, process_transfer_amount)
 
 
 def process_transfer_amount(message):
     try:
-        user_id = message.from_user.id
-        recipient_id, amount = message.text.split()
-        recipient_id = int(recipient_id)
-        amount = int(amount)
+        data = message.text.split() + ['']
+        recipient_link, amount, comment = data[0], int(data[1]), data[2:]
+        user_id = message.chat.id
 
         if amount <= 0:
             bot.send_message(message.chat.id, "❌ Сумма должна быть положительной!")
@@ -95,19 +103,29 @@ def process_transfer_amount(message):
             bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
             return
 
-        # Проверяем существование пользователей
+        recipient = get_user_from_link(conn, recipient_link)
         sender = get_user(conn, user_id)
-        recipient = get_user(conn, recipient_id)
 
-        if not sender or not recipient:
-            bot.send_message(message.chat.id, "❌ Один из пользователей не найден!")
+        if not sender:
+            bot.send_message(message.chat.id, "❌ Вы не прошли регистрацию!")
+            conn.close()
+            return
+
+        if not recipient:
+            bot.send_message(message.chat.id, "❌ Получатель не найден!")
             conn.close()
             return
 
         if sender[3] < amount:  # passive_balance
-            bot.send_message(message.chat.id, "❌ Недостаточно средств на пассивном балансе!")
+            bot.send_message(message.chat.id, "❌ Недостаточно средств на пассивном балансе для перевода!")
             conn.close()
             return
+
+        transfers[f'{sender[0]}'] = (sender, recipient, amount, comment)
+        keyboard = types.InlineKeyboardMarkup(row_width=2)
+        button_send = types.InlineKeyboardButton('Отправить', callback_data=f'transfer_from_{sender[0]}')
+        button_cancel = types.InlineKeyboardButton('Отменить', callback_data=f'get_menu')
+        keyboard.add(button_send, button_cancel)
 
         # Сохраняем данные для перевода
         bot.send_message(
@@ -116,16 +134,8 @@ def process_transfer_amount(message):
             f"Получатель: @{recipient[1]}\n"
             f"Сумма: {amount} баллов\n\n"
             "Выберите тип перевода:",
-            reply_markup=create_transfer_buttons()
+            reply_markup=keyboard
         )
-
-
-        # Сохраняем данные в глобальной переменной (временное решение)
-        bot.transfer_data = {
-            "sender_id": user_id,
-            "recipient_id": recipient_id,
-            "amount": amount
-        }
 
         conn.close()
 
@@ -133,115 +143,23 @@ def process_transfer_amount(message):
         bot.send_message(message.chat.id, "❌ Неправильный формат! Используйте: ID_получателя СУММА")
 
 
-def create_transfer_buttons():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    btn1 = types.KeyboardButton("📝 С текстом")
-    btn2 = types.KeyboardButton("📨 Без текста")
-    markup.add(btn1, btn2)
-    return markup
-
-
-@bot.message_handler(func=lambda message: message.text in ["📝 С текстом", "📨 Без текста"])
-def process_transfer_type(message):
-    if not hasattr(bot, 'transfer_data'):
-        bot.send_message(message.chat.id, "❌ Ошибка: данные перевода утеряны")
-        return
-
-    if message.text == "📝 С текстом":
-        msg = bot.send_message(message.chat.id, "📝 Введите текст сообщения для получателя:")
-        bot.register_next_step_handler(msg, complete_transfer_with_text)
-    else:
-        complete_transfer_without_text(message)
-
-
-def complete_transfer_with_text(message):
-    if not hasattr(bot, 'transfer_data'):
-        bot.send_message(message.chat.id, "❌ Ошибка: данные перевода утеряны")
-        return
+@bot.callback_query_handler(lambda call: 'transfer_from_' in call.data)
+def transfer_from(call):
+    message = call.message
 
     conn = create_connection()
-    if not conn:
-        bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
-        return
+    sender, recipient, amount, comment = transfers[call.data.split('_')[-1]]
+    print(sender, recipient)
+    comment = ' '.join(comment)
+    do_transfer(conn, sender, recipient, amount)
 
-    data = bot.transfer_data
-    sender_id = data["sender_id"]
-    recipient_id = data["recipient_id"]
-    amount = data["amount"]
+    transfers[sender[0]] = ()
+    bot.send_message(call.message.chat.id, "Перевод успешно отправлен!")
+    get_menu(call)
 
-    # Обновляем балансы
-    sender = get_user(conn, sender_id)
-    recipient = get_user(conn, recipient_id)
-
-    new_sender_passive = sender[3] - amount
-    new_recipient_active = recipient[2] + amount
-
-    update_balance(conn, sender_id, passive_balance=new_sender_passive)
-    update_balance(conn, recipient_id, active_balance=new_recipient_active)
-
-    # Отправляем сообщение получателю
-    try:
-        bot.send_message(
-            recipient_id,
-            f"💸 Вам перевели {amount} баллов!\n"
-            f"Сообщение от отправителя:\n\n{message.text}"
-        )
-    except:
-        pass  # Если не удалось отправить
-
-    # Возвращаем меню
-    show_menu(message)
-    bot.send_message(
-        message.chat.id,
-        f"✅ Перевод выполнен!\n"
-        f"Новый пассивный баланс: {new_sender_passive}"
-    )
-
-    del bot.transfer_data  # Удаляем временные данные
-    conn.close()
-
-
-def complete_transfer_without_text(message):
-    if not hasattr(bot, 'transfer_data'):
-        bot.send_message(message.chat.id, "❌ Ошибка: данные перевода утеряны")
-        return
-
-    conn = create_connection()
-    if not conn:
-        bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
-        return
-
-    data = bot.transfer_data
-    sender_id = data["sender_id"]
-    recipient_id = data["recipient_id"]
-    amount = data["amount"]
-
-    # Обновляем балансы
-    sender = get_user(conn, sender_id)
-    recipient = get_user(conn, recipient_id)
-
-    new_sender_passive = sender[3] - amount
-    new_recipient_active = recipient[2] + amount
-
-    update_balance(conn, sender_id, passive_balance=new_sender_passive)
-    update_balance(conn, recipient_id, active_balance=new_recipient_active)
-
-    # Отправляем сообщение получателю
-    try:
-        bot.send_message(recipient_id, f"💸 Вам перевели {amount} баллов!")
-    except:
-        pass  # Если не удалось отправить
-
-    # Возвращаем меню
-    show_menu(message)
-    bot.send_message(
-        message.chat.id,
-        f"✅ Перевод выполнен!\n"
-        f"Новый пассивный баланс: {new_sender_passive}"
-    )
-
-    del bot.transfer_data  # Удаляем временные данные
-    conn.close()
+    bot.send_message(recipient[0],
+                     f'Вам отправлен перевод от {sender[1]} на сумму {amount}.'
+                     f'\n{f"Комментарий: <i>{comment}</i>." if comment else ""}', parse_mode='html')
 
 
 # Обработчик кнопки "Рейтинг"
@@ -254,7 +172,6 @@ def rating(message):
 
     top_users = get_top_users(conn)
     conn.close()
-
 
     if not top_users:
         bot.send_message(message.chat.id, "🏆 Рейтинг пока пуст!")
@@ -271,7 +188,6 @@ def rating(message):
 @bot.message_handler(func=lambda message: message.text == "🛒 Магазин")
 def shop(message):
     bot.send_message(message.chat.id, "🛍 Магазин скоро откроется! Следите за обновлениями.")
-
 
 
 if __name__ == "__main__":
