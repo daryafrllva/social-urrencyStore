@@ -143,6 +143,14 @@ function App() {
           )}
         </>
       )}
+
+      <div>
+      <h1>Hello, Telegram Mini App!</h1>
+      <button onClick={sendDataToBot}>
+        Send Data to Bot
+      </button>
+    </div>
+    
     </div>
   );
 }
