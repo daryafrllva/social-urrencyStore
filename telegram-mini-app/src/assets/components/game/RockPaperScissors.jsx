@@ -11,7 +11,7 @@ export default function RockPaperScissors({ onExit }) {
   const [showModal, setShowModal] = useState(false);
   const [prizeClaimed, setPrizeClaimed] = useState(false);
 
-  // Обработка выбора игрока
+ 
   const handleChoice = (playerChoice) => {
     const choices = ['🪨 Камень', '📄 Бумага', '✂️ Ножницы'];
     const computerChoice = choices[Math.floor(Math.random() * choices.length)];
@@ -25,7 +25,7 @@ export default function RockPaperScissors({ onExit }) {
     setShowPrize(gameResult === 'Победа');
   };
 
-  // Логика определения победителя
+ 
   const determineWinner = (player, computer) => {
     if (player === computer) return 'Ничья';
     if (
@@ -38,19 +38,17 @@ export default function RockPaperScissors({ onExit }) {
     return 'Поражение';
   };
 
-  // Сброс игры
+  
   const resetGame = () => {
     setResult(null);
     setShowPrize(false);
     setPrizeClaimed(false);
   };
 
-  // Запрос награды
   const claimPrize = () => {
     setShowModal(true);
   };
 
-  // Подтверждение получения награды
   const confirmClaim = () => {
     setPrizeClaimed(true);
     setShowModal(false);
