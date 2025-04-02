@@ -1,9 +1,11 @@
 import logging
+
 import telebot
 from telebot import types
+
 from database import *
 
-bot = telebot.TeleBot("7783814922:AAHnHN_U8YlVTuxu8jKkMsqzZ4Gxz3Nh_k0")
+bot = telebot.TeleBot("7714684338:AAEynrLWSJNoMWcMgWTvZIOakF_pFc4WZ6s")
 logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)
 
@@ -28,6 +30,17 @@ menu_keyboard.add(
     types.KeyboardButton("🛒 Магазин")
 )
 
+admin_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+admin_keyboard.add(
+    types.KeyboardButton("💰 Баланс"),
+    types.KeyboardButton("📋 Задания"),
+    types.KeyboardButton("🔄 Перевод"),
+    types.KeyboardButton("🏆 Рейтинг"),
+    types.KeyboardButton("🛒 Магазин"),
+    types.KeyboardButton("Выдать штраф"),
+    types.KeyboardButton("Сменить время бонуса")
+)
+
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -43,9 +56,13 @@ def start(message):
                      reply_markup=markup)
 
 
-@bot.message_handler(func=lambda message: message.text == "✅ Согласиться")
+@bot.message_handler(func=lambda message: message.text == "✅ Согласиться" or message.text == 'Меню')
 def show_menu(message):
-    bot.send_message(message.chat.id, "👇 Выберите действие:", reply_markup=menu_keyboard)
+    conn = create_connection()
+    user_role = get_user_role(conn, message.chat.id)
+    print(user_role)
+    bot.send_message(message.chat.id, "👇 Выберите действие:",
+                     reply_markup=menu_keyboard if user_role == 'пользователь' else admin_keyboard)
 
 
 @bot.message_handler(func=lambda message: message.text == "💰 Баланс")
@@ -116,12 +133,13 @@ def process_transfer_amount(message):
 
         bot.send_message(
             message.chat.id,
-            f"Перевод для @{recipient[1]} на {amount} баллов\nПодтвердите:",reply_markup=markup
+            f"Перевод для @{recipient[1]} на {amount} баллов\nПодтвердите:", reply_markup=markup
         )
         conn.close()
 
     except ValueError:
         bot.send_message(message.chat.id, "❌ Неправильный формат! Используйте: @username сумма")
+
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('confirm_transfer_'))
 def confirm_transfer(call):
@@ -139,6 +157,7 @@ def confirm_transfer(call):
         bot.send_message(recipient[0], f"💸 Вам перевели {amount} баллов от @{sender[1]}")
         bot.delete_message(call.message.chat.id, call.message.message_id)
         del transfers[user_id]
+
 
 @bot.message_handler(func=lambda message: message.text == "🏆 Рейтинг")
 def rating(message):
@@ -160,12 +179,15 @@ def rating(message):
 
     bot.send_message(message.chat.id, rating_text)
 
+
 @bot.message_handler(func=lambda message: message.text == "🛒 Магазин")
 def shop(message):
     markup = types.InlineKeyboardMarkup()
     for idx, product in enumerate(PRODUCTS):
-        markup.add(types.InlineKeyboardButton(f"{product['name']} - {product['price']} баллов", callback_data=f"buy_{idx}"))
+        markup.add(
+            types.InlineKeyboardButton(f"{product['name']} - {product['price']} баллов", callback_data=f"buy_{idx}"))
     bot.send_message(message.chat.id, "🛍️ Выберите товар:", reply_markup=markup)
+
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('buy_'))
 def handle_buy(call):
@@ -201,12 +223,57 @@ def handle_buy(call):
     )
     conn.close()
 
+
 @bot.callback_query_handler(func=lambda call: call.data == 'cancel')
 def cancel_action(call):
+    bot.clear_step_handler_by_chat_id(call.message.chat.id)
     bot.delete_message(call.message.chat.id, call.message.message_id)
     bot.answer_callback_query(call.id, "❌ Действие отменено")
+
+
+@bot.message_handler(func=lambda message: message.text == "Выдать штраф")
+def take_fine(message):
+    conn = create_connection()
+    user_role = get_user_role(conn, message.chat.id)
+
+    if user_role == 'администратор':
+        fine_keyboard = types.InlineKeyboardMarkup(row_width=1)
+        admin_menu_button = types.InlineKeyboardButton('Назад в меню', callback_data='cancel')
+        fine_keyboard.add(admin_menu_button)
+
+        msg = bot.send_message(message.chat.id, 'Введите ссылку на пользователя, '
+                                                'количество изымаемой валюты и комментарий через пробел.'
+                                                '\n\nПример: @test 1000 Плохо себя вёл!', reply_markup=fine_keyboard)
+        bot.register_next_step_handler(msg, take_fine_by_user_link)
+    else:
+        bot.send_message(message.chat.id, 'У вас нет доступа к этому функционалу.',
+                         reply_markup=menu_keyboard)
+
+
+def take_fine_by_user_link(message):
+    try:
+        conn = create_connection()
+        data = message.text.split() + ['']
+        user_link, amount, comment = data[0].strip('@'), int(data[1]), data[2:]
+        user = get_user_from_link(conn, user_link)
+
+        if not user:
+            bot.send_message(message.chat.id, "❌ Пользователь не найден!")
+            conn.close()
+            return
+
+        update_balance(conn, user[0], active_balance=user[2] - amount)
+        bot.send_message(message.chat.id, f'Списание {amount} валюты со счёта {user[1]} успешно!',
+                         reply_markup=admin_keyboard)
+        bot.send_message(user[0], f'Вы оштрафованы администратором на {amount} единиц валюты. '
+                                  f'{"Комментарий: " + " ".join(comment)}')
+
+
+    except ValueError:
+        bot.send_message(message.chat.id, "❌ Неправильный формат ввода!"
+                                          " Используйте: [@username] [сумма] [комментарий]")
+
 
 if __name__ == "__main__":
     print("Бот запущен...")
     bot.polling()
-
