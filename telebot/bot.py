@@ -9,17 +9,16 @@ from telebot.util import smart_split
 from database import *
 from keyboards import admin_keyboard, menu_keyboard, cancel_keyboard
 
-bot = telebot.TeleBot("7714684338:AAEynrLWSJNoMWcMgWTvZIOakF_pFc4WZ6s")
+bot = telebot.TeleBot("7755530646:AAEhxMZfz7laITd_Ephw61NpL5AfRgDGii4")
 logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)
 
 # Инициализация базы данных
 init_db()
 
-transfers = dict()  # временное хранилище перевода, очищается при успешном или отмененном переводе
 constants = {'rating_size': 5,  # определяет размер рейтингового списка
              'bonus_period': 10,  # определяет время периода выдачи бонуса
-             'bonus_amount': 1000}  
+             'bonus_amount': 1000}
 
 # Список товаров
 PRODUCTS = [
@@ -65,13 +64,13 @@ def word_for_count(nominative_singular: str = 'Джоуль',
                    genitive: str = 'Джоуля',
                    nominative_plural: str = 'Джоулей',
                    count: int = 1):
-    
+
     """Функция, возвращающая правильную форму слова для конкретного количества
     на вход: именительный падеж, родительный падеж, именительный падеж во множественном числе, количество
 
     Пример входных данных: собака, собаки, собак, 3
     Пример выходных данных: собаки"""
-    
+
     if count % 100 in range(5, 21) or count % 10 in range(5, 10) or count % 10 == 0:
         return nominative_plural
     elif count % 10 in range(2, 5):
@@ -84,6 +83,7 @@ def word_for_count(nominative_singular: str = 'Джоуль',
 @bot.message_handler(commands=['start'])
 def start(message):
     conn = create_connection()
+    bot.send_message(message.chat.id, open('greeting.txt', 'r', encoding='UTF-8').read(), parse_mode='html')
     if not get_user(conn, message.chat.id):
         add_user(conn, message.chat.id, message.from_user.username)
         update_balance(conn, message.chat.id, 100, 100)
@@ -92,13 +92,17 @@ def start(message):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(types.KeyboardButton("📄 Пользовательское соглашение"))
         markup.add(types.KeyboardButton("✅ Принять"))
-        bot.send_message(message.chat.id, "Добро пожаловать!\n\n"
-                                          "🔐 Для использования бота необходимо принять пользовательское соглашение:",
+
+        bot.send_message(message.chat.id, "🔐 Для использования бота необходимо принять пользовательское соглашение:",
                          reply_markup=markup)
     else:
         bot.send_message(message.chat.id, 'Вход выполнен.')
         show_menu(message)
 
+# функция при нажатии на соответствующую кнопку
+@bot.message_handler(func=lambda message: message.text == "🆘 Помощь")
+def show_document(message):
+    bot.send_message(message.chat.id, open('instruction_for_buttem_help.txt', 'r', encoding='UTF-8').read(), parse_mode='html')
 
 # функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "📄 Пользовательское соглашение")
@@ -138,27 +142,58 @@ def balance(message):
 
 
 # функция при нажатии на соответствующую кнопку
-@bot.message_handler(func=lambda message: message.text == "📋 Задания")
+@bot.message_handler(func=lambda message: message.text == "🎮 Игры")
 def tasks(message):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("🗂 Перейти к заданиям", url="https://8c60-115-37-139-49.ngrok-free.app/"))
     bot.send_message(message.chat.id, "Задания доступны в нашем веб-приложении:", reply_markup=markup)
 
 
-# функция при нажатии на соответствующую кнопку
+
+
 @bot.message_handler(func=lambda message: message.text == "🔄 Перевод")
 def transfer(message):
+    conn = create_connection()
+    transfers_today = get_today_transfers_count(conn, message.chat.id)
+    conn.close()
+
+    if transfers_today >= 3:
+        bot.send_message(message.chat.id,
+                         "❌ Вы уже совершили максимальное количество переводов за сегодня (3).\n"
+                         "Попробуйте завтра.",
+                         reply_markup=menu_keyboard)
+        return
+
+    remaining = 3 - transfers_today
+    word_transfer = word_for_count("перевод", "перевода", "переводов", remaining)
+
     msg = bot.send_message(message.chat.id,
-                           "Введите <b>ссылку</b> на пользователя, <b>сумму перевода</b> "
-                           "и комментарий (опционально) через пробел:\n\nПример: @username 100 Спасибо за помощь)",
+                           f"Введите <b>ссылку</b> на пользователя, <b>сумму перевода</b> "
+                           f"и комментарий (опционально) через пробел:\n\n"
+                           f"Пример: @username 100 Спасибо за помощь)\n\n"
+                           f"Осталось переводов сегодня: {remaining} {word_transfer}",
                            parse_mode='html',
                            reply_markup=cancel_keyboard)
     bot.register_next_step_handler(msg, process_transfer_amount)
 
 
-# функция проверки возможности перевода другому пользователю и формирования карточки подтверждения перевода
 def process_transfer_amount(message):
     try:
+        # Проверяем количество переводов за сегодня
+        conn = create_connection()
+        if not conn:
+            bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
+            return
+
+        transfers_today = get_today_transfers_count(conn, message.chat.id)
+        if transfers_today >= 3:
+            bot.send_message(message.chat.id,
+                             "❌ Вы уже совершили максимальное количество переводов за сегодня (3).\n"
+                             "Попробуйте завтра.",
+                             reply_markup=menu_keyboard)
+            conn.close()
+            return
+
         data = message.text.split()
         if len(data) < 2:
             raise ValueError
@@ -170,11 +205,7 @@ def process_transfer_amount(message):
 
         if amount <= 0:
             bot.send_message(message.chat.id, "❌ Сумма должна быть положительной!")
-            return
-
-        conn = create_connection()
-        if not conn:
-            bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
+            conn.close()
             return
 
         recipient = get_user_from_link(conn, recipient_link)
@@ -195,57 +226,101 @@ def process_transfer_amount(message):
             conn.close()
             return
 
-        transfers[str(user_id)] = (sender, recipient, amount, comment)
+        # Сохраняем перевод в базу данных
+        transfer_id = add_pending_transfer(conn, sender[0], recipient[0], amount, comment)
+        conn.close()
+
+        remaining_transfers = 3 - transfers_today - 1
+        word_transfer = word_for_count("перевод", "перевода", "переводов", remaining_transfers)
 
         markup = types.InlineKeyboardMarkup()
         markup.add(
-            types.InlineKeyboardButton("✅ Подтвердить", callback_data=f"confirm_transfer_{user_id}"),
-            types.InlineKeyboardButton("❌ Отменить", callback_data="cancel")
+            types.InlineKeyboardButton("✅ Подтвердить", callback_data=f"confirm_transfer_{transfer_id}"),
+            types.InlineKeyboardButton("❌ Отменить", callback_data=f"cancel_transfer_{transfer_id}")
         )
 
         confirmation_message = f"Перевод для @{recipient[1]} на {amount} {word_for_count(count=amount)}."
         if comment:
             confirmation_message += f"\nКомментарий: {comment}"
+        confirmation_message += f"\n\nОсталось переводов сегодня: {remaining_transfers} {word_transfer}"
         confirmation_message += "\nПодтвердите:"
 
         bot.send_message(
             message.chat.id,
             confirmation_message,
             reply_markup=markup)
-        conn.close()
 
     except ValueError:
         bot.send_message(message.chat.id, "❌ Неправильный формат! Используйте: @username сумма [комментарий]")
 
 
-# функция при подтверждении перевода пользователю
 @bot.callback_query_handler(func=lambda call: call.data.startswith('confirm_transfer_'))
 def confirm_transfer(call):
-    user_id = call.data.split('_')[-1]
-    if user_id not in transfers:
-        bot.answer_callback_query(call.id, "❌ Данные перевода утеряны")
+    transfer_id = call.data.split('_')[-1]
+    conn = create_connection()
+    if not conn:
+        bot.answer_callback_query(call.id, "❌ Ошибка базы данных")
         return
 
-    sender, recipient, amount, comment = transfers[user_id]
+    # Получаем данные о переводе из базы данных
+    pending_transfer = get_pending_transfer(conn, transfer_id)
+    if not pending_transfer:
+        bot.answer_callback_query(call.id, "❌ Данные перевода утеряны")
+        conn.close()
+        return
+
+    sender_id, recipient_id, amount, comment = pending_transfer[1], pending_transfer[2], pending_transfer[3], \
+    pending_transfer[4]
+
+    # Получаем данные пользователей
+    sender = get_user(conn, sender_id)
+    recipient = get_user(conn, recipient_id)
+
+    if not sender or not recipient:
+        bot.answer_callback_query(call.id, "❌ Один из пользователей не найден")
+        conn.close()
+        return
+
+    # Выполняем перевод
+    do_transfer(conn, sender, recipient, amount)
+
+    # Записываем перевод в историю
+    cursor = conn.cursor()
+    cursor.execute('''
+    INSERT INTO transfers (sender_id, recipient_id, amount)
+    VALUES (?, ?, ?)
+    ''', (sender_id, recipient_id, amount))
+    conn.commit()
+
+    # Удаляем временные данные
+    delete_pending_transfer(conn, transfer_id)
+    conn.close()
+
+    # Сообщение отправителю
+    sender_message = f"✅ Вы перевели @{recipient[1]} {amount} {word_for_count(count=amount)}"
+    if comment:
+        sender_message += f"\nКомментарий: {comment}"
+    bot.send_message(sender[0], sender_message)
+
+    # Сообщение получателю
+    recipient_message = f"💸 Вам перевели {amount} {word_for_count(count=amount)} от @{sender[1]}"
+    if comment:
+        recipient_message += f"\nКомментарий: {comment}"
+    bot.send_message(recipient[0], recipient_message)
+
+    bot.delete_message(call.message.chat.id, call.message.message_id)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('cancel_transfer_'))
+def cancel_transfer(call):
+    transfer_id = call.data.split('_')[-1]
     conn = create_connection()
     if conn:
-        do_transfer(conn, sender, recipient, amount)
+        delete_pending_transfer(conn, transfer_id)
         conn.close()
 
-        # Сообщение отправителю
-        sender_message = f"✅ Вы перевели @{recipient[1]} {amount} {word_for_count(count=amount)}"
-        if comment:
-            sender_message += f"\nКомментарий: {comment}"
-        bot.send_message(sender[0], sender_message)
-
-        # Сообщение получателю
-        recipient_message = f"💸 Вам перевели {amount} {word_for_count(count=amount)} от @{sender[1]}"
-        if comment:
-            recipient_message += f"\nКомментарий: {comment}"
-        bot.send_message(recipient[0], recipient_message)
-
-        bot.delete_message(call.message.chat.id, call.message.message_id)
-        del transfers[user_id]
+    bot.delete_message(call.message.chat.id, call.message.message_id)
+    bot.answer_callback_query(call.id, "❌ Перевод отменен")
 
 
 # функция при нажатии на соответствующую кнопку
@@ -455,12 +530,14 @@ def purchase_history(message):
         history_text += "💸 <b>Переводы:</b>\n"
         for item in transfers:
             direction = "Отправлен" if item[3] == "out" else "Получен"
-            history_text += f"🔄 {direction} перевод {item[1]} {word_for_count(count=item[1])}\n"
-            history_text += f"👤 {'@' + item[2] if item[2] else 'пользователь'}\n"
+            username = item[2] if item[2] else "пользователь"
+            history_text += f"🔄 {direction} перевод {item[1]} баллов\n"
+            history_text += f"👤 @{username}\n" if username != "пользователь" else f"👤 {username}\n"
             history_text += f"📅 {item[0]}\n\n"
 
-    bot.send_message(message.chat.id, history_text, parse_mode="HTML")
-
+    # Разбиваем сообщение на части, если оно слишком длинное
+    for part in smart_split(history_text):
+        bot.send_message(message.chat.id, part, parse_mode="HTML")
 
 # функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "😡 Выдать штраф")

@@ -2,12 +2,22 @@ import { useState, useEffect } from 'react';
 import '../../../styles/coin-game.css';
 import GameModal from './GameModal';
 
-export default function CoinGame({ onExit, /*onWin*/ }) {
+export default function CoinGame({ onExit, onWin }) {
   const [grid, setGrid] = useState(Array(9).fill(null));
   const [coinPosition, setCoinPosition] = useState(null);
   const [gameEnded, setGameEnded] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [gameResult, setGameResult] = useState(null); 
+  const [gameResult, setGameResult] = useState(null);
+  const [tgReady, setTgReady] = useState(false);
+  const [prizeClaimed, setPrizeClaimed] = useState(false);
+
+  useEffect(() => {
+    if (window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      tg.expand();
+      setTgReady(true);
+    }
+  }, []);
 
   useEffect(() => {
     startNewGame();
@@ -17,9 +27,9 @@ export default function CoinGame({ onExit, /*onWin*/ }) {
     const newCoinPosition = Math.floor(Math.random() * 9);
     setCoinPosition(newCoinPosition);
     setGrid(Array(9).fill(null));
-   
     setGameEnded(false);
     setGameResult(null);
+    setPrizeClaimed(false);
   };
 
   const handleSquareClick = (index) => {
@@ -32,7 +42,9 @@ export default function CoinGame({ onExit, /*onWin*/ }) {
     if (index === coinPosition) {
       newGrid[index] = 'coin';
       setGameResult('win');
-     // onWin();
+      if (!prizeClaimed) {
+        onWin(); // Начисляем монеты при победе
+      }
     } else {
       setGameResult('lose');
     }
@@ -43,11 +55,30 @@ export default function CoinGame({ onExit, /*onWin*/ }) {
 
   const handleModalClose = () => {
     setShowModal(false);
+    if (gameResult === 'win') {
+      
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.sendData(JSON.stringify({
+          action: 'prize_claimed',
+          game: 'coin_game',
+          prize: 10
+        }));
+      }
+    }
     onExit();
   };
 
   return (
     <div className="coin-game-container">
+      {tgReady && (
+        <button 
+          onClick={() => window.Telegram?.WebApp?.close()}
+          className="tg-close-btn"
+        >
+          Закрыть игру
+        </button>
+      )}
+      
       <button onClick={onExit} className="exit-button">
         ← Назад
       </button>

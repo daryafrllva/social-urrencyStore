@@ -170,10 +170,10 @@ def get_transfer_history(conn, user_id, limit=10):
     """Получаем историю переводов пользователя"""
     cursor = conn.cursor()
 
-    # Получаем исходящие переводы
+    # Получаем исходящие переводы с московским временем
     cursor.execute('''
         SELECT 
-            strftime('%Y-%m-%d %H:%M', transfer_date) as date,
+            datetime(transfer_date, 'localtime') as date,
             amount,
             (SELECT username FROM users WHERE user_id = recipient_id) as recipient,
             'out' as direction
@@ -184,10 +184,10 @@ def get_transfer_history(conn, user_id, limit=10):
     ''', (user_id, limit))
     outgoing = cursor.fetchall()
 
-    # Получаем входящие переводы
+    # Получаем входящие переводы с московским временем
     cursor.execute('''
         SELECT 
-            strftime('%Y-%m-%d %H:%M', transfer_date) as date,
+            datetime(transfer_date, 'localtime') as date,
             amount,
             (SELECT username FROM users WHERE user_id = sender_id) as sender,
             'in' as direction
@@ -237,3 +237,53 @@ def make_user_admin(conn, user_link):
     else:
         update_user_role(conn, user[0], get_role_id(conn, 'администратор')[0])
         return f'Пользователь @{user_link} успешно стал администратором!'
+
+
+def get_today_transfers_count(conn, user_id):
+    """Получаем количество переводов пользователя за сегодня"""
+    cursor = conn.cursor()
+    cursor.execute('''
+    SELECT COUNT(*) 
+    FROM transfers 
+    WHERE sender_id = ? 
+    AND date(transfer_date, 'localtime') = date('now', 'localtime')
+    ''', (user_id,))
+    return cursor.fetchone()[0]
+
+def add_pending_transfer(conn, sender_id, recipient_id, amount, comment=""):
+    """Добавляем временные данные о переводе перед подтверждением"""
+    cursor = conn.cursor()
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS pending_transfers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER,
+        recipient_id INTEGER,
+        amount INTEGER,
+        comment TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (sender_id) REFERENCES users (user_id),
+        FOREIGN KEY (recipient_id) REFERENCES users (user_id)
+    )
+    ''')
+    cursor.execute('''
+    INSERT INTO pending_transfers (sender_id, recipient_id, amount, comment)
+    VALUES (?, ?, ?, ?)
+    ''', (sender_id, recipient_id, amount, comment))
+    conn.commit()
+    return cursor.lastrowid
+
+def get_pending_transfer(conn, transfer_id):
+    """Получаем данные о временном переводе"""
+    cursor = conn.cursor()
+    cursor.execute('''
+    SELECT * FROM pending_transfers WHERE id = ?
+    ''', (transfer_id,))
+    return cursor.fetchone()
+
+def delete_pending_transfer(conn, transfer_id):
+    """Удаляем временные данные о переводе"""
+    cursor = conn.cursor()
+    cursor.execute('''
+    DELETE FROM pending_transfers WHERE id = ?
+    ''', (transfer_id,))
+    conn.commit()

@@ -1,0 +1,26 @@
+@font-face {
+    font-family: 'Unbounded-Bold';
+    src: url('/fonts/Unbounded-Bold.ttf') format('truetype');
+    /* url('/fonts/YourFont-Regular.woff2') format('woff2'), */
+    font-weight: 800;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Unbounded-SemiBold';
+    src: url('/Unbounded-SemiBold.ttf') format('truetype');
+    /* url('/fonts/YourFont-Regular.woff2') format('woff2'), */
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Montserrat';
+    src: url('/Montserrat-Regular.ttf') format('truetype');
+    /* url('/fonts/YourFont-Regular.woff2') format('woff2'), */
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
