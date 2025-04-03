@@ -2,25 +2,17 @@ from fastapi import FastAPI
 from database import *
 
 app = FastAPI()
+init_db()
 
 
-@app.get('/users')
-def get_users_all():
+@app.post("/api/update_balance")
+def update_balance_for_current_user(user_id: int, amount: int):
     conn = create_connection()
-    return get_users(conn)
-
-
-@app.get('/user/{user_id}')
-def get_current_user(user_id: int):
-    conn = create_connection()
-    return get_user(conn, user_id)
-
-
-@app.get('/user/{user_id}/balance')
-def get_balance_from_user(user_id: int):
-    # conn = create_connection()
-    # return get_user(conn, user_id)[2]
-    return 1
+    user = get_user(conn, user_id)
+    if user:
+        update_balance(conn, user_id, active_balance=user[2] + amount)
+    else:
+        print(f'User {user_id} not found.')
 
 
 if __name__ == "__main__":
