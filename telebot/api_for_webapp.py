@@ -18,8 +18,9 @@ def get_current_user(user_id: int):
 
 @app.get('/user/{user_id}/balance')
 def get_balance_from_user(user_id: int):
-    conn = create_connection()
-    return get_user(conn, user_id)[2]
+    # conn = create_connection()
+    # return get_user(conn, user_id)[2]
+    return 1
 
 
 if __name__ == "__main__":
