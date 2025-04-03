@@ -7,6 +7,7 @@ body {
 }
 
 h1 {
+    font-family: 'Unbounded-Bold', sans-serif;
     text-align: center;
     color: #FFFFFF;
     padding: 0;
@@ -45,39 +46,62 @@ h1 {
 
 .task__text {
     /*ПЕРВЫЙ ВЛОЖЕННЫЙ БЛОК*/
-    background-color: aqua;
-    border-radius: 73.02px 0px 0px 73.02px;
+    /* background-color: aqua; */
+    border-radius: 73.02px 0px 0px 0px;
     display: block;
     width: 70%;
-    height: 100%;
+    height: 70%;
     align-items: flex-start;
     flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .task__name {
     width: auto;
     height: 50px;
     padding: 38px 0px 0px 45px;
+    font-weight: 900;
     /* ПОДКЛЮЧИТЬ ШРИФТ Unbounded */
 }
 
 .task__description {
     width: auto;
     height: 64px;
-    padding: 0px 44px 56px 45px;
+    padding: 0px 44px 0px 45px;
     /* ПОДКЛЮЧИТЬ ШРИФТ Montserrat */
 }
 
 .task__owner {
     width: auto;
     padding: 0px 44px 0px 45px;
+    font-weight: 600;
     /* ПОДКЛЮЧИТЬ ШРИФТ Montserrat */
 }
 
 .task__joule {
+    /* background-color: aquamarine; */
     /*ВТОРОЙ ВЛОЖЕННЫЙ БЛОК*/
     width: 70%;
+    height: 70%;
+    border-radius: 0px 73.02px 0px 0px;
 }
+
+.task__icon {
+    text-align: center;
+    margin-top: 30%;
+}
+
+.task__price {
+    text-align: center;
+}
+
+/* .task__play { хз как поместить подо всеми
+    display: block;
+    width: 100%;
+    height: auto;
+    text-align: center;
+} */
 
 
 /* ПРИМЕР */
