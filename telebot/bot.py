@@ -2,7 +2,6 @@ import logging
 from threading import Thread
 from time import sleep
 
-import schedule
 import telebot
 from telebot import types
 from telebot.util import smart_split
@@ -482,6 +481,7 @@ def change_bonus_time(message):
 
 
 def do_change_time(message):
+    global thrd
     try:
         constants['fake_bonus_time'] = int(message.text)
         word_minute = word_for_count("минута", "минуты", "минут", constants["fake_bonus_time"])
@@ -490,31 +490,27 @@ def do_change_time(message):
                                           f'{word_minute}.</b>',
                          parse_mode='html')
 
-        job = schedule.get_jobs()[0]  # отмена предыдущей задачи
-        schedule.cancel_job(job)
-        Thread(target=scheduler).start()  # создание новой задачи с другим периодом
+        if thrd.is_alive():
+            return
+        else:
+            thrd = Thread(target=periodic_bonus)  # создание новой задачи с другим периодом
+            thrd.start()
 
     except ValueError:
         bot.send_message(message.chat.id, "❌ Неправильный формат ввода! "
                                           "Введите число без дополнительных знаков.")
-
-
-def scheduler():  # выполняет функцию periodic_bonus каждые n минут
-    schedule.every(constants['fake_bonus_time']).minutes.do(periodic_bonus)
-    while True:
-        sleep(1)
-        schedule.run_pending()
-        if not schedule.get_jobs():
-            break
+        return
 
 
 def periodic_bonus():
-    conn = create_connection()
-    user_ids = get_users(conn)
-    for user in user_ids:
-        update_balance(conn, user[0], passive_balance=user[3] + constants['bonus_amount'])
-        bot.send_message(user[0], f'Вам зачислен бонус на пассивный счёт в размере {constants["bonus_amount"]} '
-                                  f'{word_for_count(count=constants["bonus_amount"])}.')
+    while constants['fake_bonus_time']:
+        conn = create_connection()
+        user_ids = get_users(conn)
+        for user in user_ids:
+            update_balance(conn, user[0], passive_balance=user[3] + constants['bonus_amount'])
+            bot.send_message(user[0], f'Вам зачислен бонус на пассивный счёт в размере {constants["bonus_amount"]} '
+                                      f'{word_for_count(count=constants["bonus_amount"])}.')
+        sleep(constants['fake_bonus_time'] * 60)
 
 
 @bot.message_handler(func=lambda message: message.text == "🗿 Пользователи")
@@ -548,5 +544,6 @@ def make_admin_by_link(message):
 
 
 if __name__ == "__main__":
-    Thread(target=scheduler).start()
+    thrd = Thread(target=periodic_bonus)
+    thrd.start()
     bot.infinity_polling()
