@@ -9,14 +9,13 @@ from telebot.util import smart_split
 from database import *
 from keyboards import admin_keyboard, menu_keyboard, cancel_keyboard
 
-bot = telebot.TeleBot("7714684338:AAEynrLWSJNoMWcMgWTvZIOakF_pFc4WZ6s")
+bot = telebot.TeleBot("7783814922:AAHnHN_U8YlVTuxu8jKkMsqzZ4Gxz3Nh_k0")
 logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)
 
 # Инициализация базы данных
 init_db()
 
-transfers = dict()  # временное хранилище перевода, очищается при успешном или отмененном переводе
 constants = {'rating_size': 5,  # определяет размер рейтингового списка
              'bonus_period': 10,  # определяет время периода выдачи бонуса
              'bonus_amount': 1000}
@@ -139,14 +138,15 @@ def balance(message):
 
 
 # функция при нажатии на соответствующую кнопку
-@bot.message_handler(func=lambda message: message.text == "📋 Задания")
+@bot.message_handler(func=lambda message: message.text == "🎮 Игры")
 def tasks(message):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("🗂 Перейти к заданиям", url="https://example.com/tasks"))
     bot.send_message(message.chat.id, "Задания доступны в нашем веб-приложении:", reply_markup=markup)
 
 
-# функция при нажатии на соответствующую кнопку
+
+
 @bot.message_handler(func=lambda message: message.text == "🔄 Перевод")
 def transfer(message):
     conn = create_connection()
@@ -173,7 +173,6 @@ def transfer(message):
     bot.register_next_step_handler(msg, process_transfer_amount)
 
 
-# функция проверки возможности перевода другому пользователю и формирования карточки подтверждения перевода
 def process_transfer_amount(message):
     try:
         # Проверяем количество переводов за сегодня
@@ -223,15 +222,17 @@ def process_transfer_amount(message):
             conn.close()
             return
 
-        transfers[str(user_id)] = (sender, recipient, amount, comment)
+        # Сохраняем перевод в базу данных
+        transfer_id = add_pending_transfer(conn, sender[0], recipient[0], amount, comment)
+        conn.close()
 
-        remaining_transfers = 3 - transfers_today - 1  # -1 потому что текущий перевод ещё не совершён
+        remaining_transfers = 3 - transfers_today - 1
         word_transfer = word_for_count("перевод", "перевода", "переводов", remaining_transfers)
 
         markup = types.InlineKeyboardMarkup()
         markup.add(
-            types.InlineKeyboardButton("✅ Подтвердить", callback_data=f"confirm_transfer_{user_id}"),
-            types.InlineKeyboardButton("❌ Отменить", callback_data="cancel")
+            types.InlineKeyboardButton("✅ Подтвердить", callback_data=f"confirm_transfer_{transfer_id}"),
+            types.InlineKeyboardButton("❌ Отменить", callback_data=f"cancel_transfer_{transfer_id}")
         )
 
         confirmation_message = f"Перевод для @{recipient[1]} на {amount} {word_for_count(count=amount)}."
@@ -244,7 +245,6 @@ def process_transfer_amount(message):
             message.chat.id,
             confirmation_message,
             reply_markup=markup)
-        conn.close()
 
     except ValueError:
         bot.send_message(message.chat.id, "❌ Неправильный формат! Используйте: @username сумма [комментарий]")
@@ -252,40 +252,71 @@ def process_transfer_amount(message):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('confirm_transfer_'))
 def confirm_transfer(call):
-    user_id = call.data.split('_')[-1]
-    if user_id not in transfers:
-        bot.answer_callback_query(call.id, "❌ Данные перевода утеряны")
+    transfer_id = call.data.split('_')[-1]
+    conn = create_connection()
+    if not conn:
+        bot.answer_callback_query(call.id, "❌ Ошибка базы данных")
         return
 
-    sender, recipient, amount, comment = transfers[user_id]
+    # Получаем данные о переводе из базы данных
+    pending_transfer = get_pending_transfer(conn, transfer_id)
+    if not pending_transfer:
+        bot.answer_callback_query(call.id, "❌ Данные перевода утеряны")
+        conn.close()
+        return
+
+    sender_id, recipient_id, amount, comment = pending_transfer[1], pending_transfer[2], pending_transfer[3], \
+    pending_transfer[4]
+
+    # Получаем данные пользователей
+    sender = get_user(conn, sender_id)
+    recipient = get_user(conn, recipient_id)
+
+    if not sender or not recipient:
+        bot.answer_callback_query(call.id, "❌ Один из пользователей не найден")
+        conn.close()
+        return
+
+    # Выполняем перевод
+    do_transfer(conn, sender, recipient, amount)
+
+    # Записываем перевод в историю
+    cursor = conn.cursor()
+    cursor.execute('''
+    INSERT INTO transfers (sender_id, recipient_id, amount)
+    VALUES (?, ?, ?)
+    ''', (sender_id, recipient_id, amount))
+    conn.commit()
+
+    # Удаляем временные данные
+    delete_pending_transfer(conn, transfer_id)
+    conn.close()
+
+    # Сообщение отправителю
+    sender_message = f"✅ Вы перевели @{recipient[1]} {amount} {word_for_count(count=amount)}"
+    if comment:
+        sender_message += f"\nКомментарий: {comment}"
+    bot.send_message(sender[0], sender_message)
+
+    # Сообщение получателю
+    recipient_message = f"💸 Вам перевели {amount} {word_for_count(count=amount)} от @{sender[1]}"
+    if comment:
+        recipient_message += f"\nКомментарий: {comment}"
+    bot.send_message(recipient[0], recipient_message)
+
+    bot.delete_message(call.message.chat.id, call.message.message_id)
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('cancel_transfer_'))
+def cancel_transfer(call):
+    transfer_id = call.data.split('_')[-1]
     conn = create_connection()
     if conn:
-        do_transfer(conn, sender, recipient, amount)
-
-        # Записываем перевод в базу данных
-        cursor = conn.cursor()
-        cursor.execute('''
-        INSERT INTO transfers (sender_id, recipient_id, amount)
-        VALUES (?, ?, ?)
-        ''', (sender[0], recipient[0], amount))
-        conn.commit()
-
+        delete_pending_transfer(conn, transfer_id)
         conn.close()
 
-        # Сообщение отправителю
-        sender_message = f"✅ Вы перевели @{recipient[1]} {amount} {word_for_count(count=amount)}"
-        if comment:
-            sender_message += f"\nКомментарий: {comment}"
-        bot.send_message(sender[0], sender_message)
-
-        # Сообщение получателю
-        recipient_message = f"💸 Вам перевели {amount} {word_for_count(count=amount)} от @{sender[1]}"
-        if comment:
-            recipient_message += f"\nКомментарий: {comment}"
-        bot.send_message(recipient[0], recipient_message)
-
-        bot.delete_message(call.message.chat.id, call.message.message_id)
-        del transfers[user_id]
+    bot.delete_message(call.message.chat.id, call.message.message_id)
+    bot.answer_callback_query(call.id, "❌ Перевод отменен")
 
 
 # функция при нажатии на соответствующую кнопку

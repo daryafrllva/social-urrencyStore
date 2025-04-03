@@ -249,3 +249,41 @@ def get_today_transfers_count(conn, user_id):
     AND date(transfer_date, 'localtime') = date('now', 'localtime')
     ''', (user_id,))
     return cursor.fetchone()[0]
+
+def add_pending_transfer(conn, sender_id, recipient_id, amount, comment=""):
+    """Добавляем временные данные о переводе перед подтверждением"""
+    cursor = conn.cursor()
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS pending_transfers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER,
+        recipient_id INTEGER,
+        amount INTEGER,
+        comment TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (sender_id) REFERENCES users (user_id),
+        FOREIGN KEY (recipient_id) REFERENCES users (user_id)
+    )
+    ''')
+    cursor.execute('''
+    INSERT INTO pending_transfers (sender_id, recipient_id, amount, comment)
+    VALUES (?, ?, ?, ?)
+    ''', (sender_id, recipient_id, amount, comment))
+    conn.commit()
+    return cursor.lastrowid
+
+def get_pending_transfer(conn, transfer_id):
+    """Получаем данные о временном переводе"""
+    cursor = conn.cursor()
+    cursor.execute('''
+    SELECT * FROM pending_transfers WHERE id = ?
+    ''', (transfer_id,))
+    return cursor.fetchone()
+
+def delete_pending_transfer(conn, transfer_id):
+    """Удаляем временные данные о переводе"""
+    cursor = conn.cursor()
+    cursor.execute('''
+    DELETE FROM pending_transfers WHERE id = ?
+    ''', (transfer_id,))
+    conn.commit()

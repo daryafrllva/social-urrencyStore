@@ -3,7 +3,7 @@ from telebot.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMar
 menu_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 menu_keyboard.add(
     KeyboardButton("💰 Баланс"),
-    KeyboardButton("📋 Задания"),
+    KeyboardButton("🎮 Игры"),
     KeyboardButton("🔄 Перевод"),
     KeyboardButton("🏆 Рейтинг"),
     KeyboardButton("🛒 Магазин"),
@@ -13,7 +13,7 @@ menu_keyboard.add(
 admin_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 admin_keyboard.add(
     KeyboardButton("💰 Баланс"),
-    KeyboardButton("📋 Задания"),
+    KeyboardButton("🎮 Игры"),
     KeyboardButton("🔄 Перевод"),
     KeyboardButton("🏆 Рейтинг"),
     KeyboardButton("🛒 Магазин"),
