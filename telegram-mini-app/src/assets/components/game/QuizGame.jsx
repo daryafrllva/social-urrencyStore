@@ -11,171 +11,181 @@ const quizThemes = [
   { id: 6, name: 'Спорт' },
 ];
 
-const quizQuestions = {
-  1: [
-    {
-      text: "Какое животное считается национальным символом Австралии?",
-      options: ["Кенгуру", "Коала", "Вомбат", "Ехидна"],
-      answer: "Кенгуру",
-      explanation: "Кенгуру является национальным символом Австралии и изображен на гербе страны."
-    },
-    {
-      text: "Какое млекопитающее умеет летать?",
-      options: ["Пингвин", "Летучая мышь", "Кенгуру", "Дельфин"],
-      answer: "Летучая мышь",
-      explanation: "Летучие мыши - единственные млекопитающие, способные к активному полету."
-    }
-  ],
-  2: [
-    {
-      text: "Какой газ преобладает в атмосфере Земли?",
-      options: ["Кислород", "Азот", "Углекислый газ", "Водород"],
-      answer: "Азот",
-      explanation: "Атмосфера Земли состоит примерно на 78% из азота."
-    }
-  ]
-};
-
-export default function QuizGame({ onExit, onWin }) {
+export default function QuizGame({ onExit }) {
   const [currentTheme, setCurrentTheme] = useState(null);
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [score, setScore] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [gameResult, setGameResult] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
-  const [tgReady, setTgReady] = useState(false);
+  const [currentExplanation, setCurrentExplanation] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [questionQueue, setQuestionQueue] = useState([]);
 
-  useEffect(() => {
-    if (window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp;
-      tg.expand();
-      setTgReady(true);
+  // Функция для генерации вопроса через API
+  const generateQuestion = async (themeName) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://192.168.0.38:8000/api/generate-quiz', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ category: themeName })
+      });
+      
+      const newQuestion = await response.json();
+      return newQuestion;
+    } catch (error) {
+      console.error('Ошибка генерации вопроса:', error);
+      return null;
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  };
 
-  const handleThemeSelect = (themeId) => {
+  const handleThemeSelect = async (themeId) => {
+    const themeName = quizThemes.find(t => t.id === themeId).name;
     setCurrentTheme(themeId);
-    setCurrentQuestion(0);
-    setScore(0);
+    
+    // Генерируем первый вопрос сразу
+    const firstQuestion = await generateQuestion(themeName);
+    if (firstQuestion) {
+      setCurrentQuestion(firstQuestion);
+      setQuestionQueue([]);
+      
+      // Начинаем фоновую загрузку следующего вопроса
+      loadNextQuestion(themeName);
+    }
+  };
+
+  const loadNextQuestion = async (themeName) => {
+    const nextQuestion = await generateQuestion(themeName);
+    if (nextQuestion) {
+      setQuestionQueue(prev => [...prev, nextQuestion]);
+    }
   };
 
   const handleAnswer = (selectedOption) => {
-    const currentQuiz = quizQuestions[currentTheme][currentQuestion];
+    if (isLoading) return;
+    
     setSelectedAnswer(selectedOption);
     
-    const isCorrect = selectedOption === currentQuiz.answer;
-    setGameResult(isCorrect ? 'win' : 'wrong');
-    
-    if (isCorrect) {
-      const newScore = score + 1;
-      setScore(newScore);
-      
-      // Начисляем монеты за каждый правильный ответ
-      const themeReward = quizThemes.find(t => t.id === currentTheme).reward;
-      onWin(themeReward);
+    if (selectedOption === currentQuestion.answer) {
+      setGameResult('win');
+    } else {
+      setGameResult('wrong');
     }
     
+    setCurrentExplanation(currentQuestion.explanation || '');
     setShowModal(true);
   };
 
-  const handleNext = () => {
+  const handleNextQuestion = () => {
     setShowModal(false);
-    if (currentQuestion < quizQuestions[currentTheme].length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
+    
+    // Берем следующий вопрос из очереди или загружаем новый
+    if (questionQueue.length > 0) {
+      setCurrentQuestion(questionQueue[0]);
+      setQuestionQueue(prev => prev.slice(1));
+      
+      // Если в очереди остался только 1 вопрос, загружаем следующий
+      if (questionQueue.length <= 1) {
+        const themeName = quizThemes.find(t => t.id === currentTheme).name;
+        loadNextQuestion(themeName);
+      }
     } else {
-      endGame();
+      // Если очередь пуста, загружаем новый вопрос
+      const themeName = quizThemes.find(t => t.id === currentTheme).name;
+      setIsLoading(true);
+      generateQuestion(themeName).then(question => {
+        if (question) {
+          setCurrentQuestion(question);
+        }
+        setIsLoading(false);
+      });
     }
   };
 
   const endGame = () => {
-    // Отправляем финальный результат в Telegram
-    if (window.Telegram?.WebApp && score > 0) {
-      const totalReward = score * quizThemes.find(t => t.id === currentTheme).reward;
-      window.Telegram.WebApp.sendData(JSON.stringify({
-        action: 'quiz_completed',
-        score: score,
-        reward: totalReward,
-        theme: quizThemes.find(t => t.id === currentTheme).name
-      }));
-    }
-    
     setCurrentTheme(null);
-    setCurrentQuestion(0);
+    setCurrentQuestion(null);
     setShowModal(false);
+    setQuestionQueue([]);
   };
 
   const getOptionClass = (option) => {
     if (!showModal) return 'option-button';
-    const isCorrect = option === quizQuestions[currentTheme][currentQuestion].answer;
-    return `option-button ${isCorrect ? 'correct' : option === selectedAnswer ? 'incorrect' : ''}`;
+    if (option === currentQuestion.answer) {
+      return 'option-button correct';
+    }
+    if (option === selectedAnswer && gameResult === 'wrong') {
+      return 'option-button incorrect';
+    }
+    return 'option-button';
   };
 
   return (
     <div className="quiz-game-container">
-      {tgReady && (
-        <button 
-          onClick={() => window.Telegram?.WebApp?.close()}
-          className="tg-close-btn"
-        >
-          Закрыть игру
-        </button>
-      )}
-      
       <button onClick={onExit} className="exit-button">
         ← Назад
       </button>
 
       {!currentTheme ? (
-        <div className="theme-selection">
-          <h2>Выберите тему викторины</h2>
+        <>
+          <h2>Выберите тему викторины!</h2>
           <div className="theme-grid">
-            {quizThemes.map(theme => (
+            {quizThemes.map((theme) => (
               <button
                 key={theme.id}
                 className="theme-button"
                 onClick={() => handleThemeSelect(theme.id)}
+                disabled={isLoading}
               >
                 {theme.name}
-                <span className="reward-badge">+{theme.reward} монет/вопрос</span>
               </button>
             ))}
           </div>
+        </>
+      ) : isLoading && !currentQuestion ? (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+          <p>Загрузка первого вопроса...</p>
         </div>
       ) : (
-        <div className="quiz-content">
-          <div className="quiz-header">
-            <span className="theme-name">{quizThemes.find(t => t.id === currentTheme).name}</span>
-            <span className="score">Счет: {score}</span>
-          </div>
+        <>
+          <h2>Тема: {quizThemes.find(t => t.id === currentTheme).name}</h2>
           
-          <div className="progress">
-            Прогресс: {currentQuestion + 1}/{quizQuestions[currentTheme].length}
-          </div>
-          
-          <div className="question">
-            <h3>{quizQuestions[currentTheme][currentQuestion].text}</h3>
-            <div className="options">
-              {quizQuestions[currentTheme][currentQuestion].options.map((option, i) => (
+          <div className="question-container">
+            <h3>{currentQuestion.text}</h3>
+            <div className="options-grid">
+              {currentQuestion.options.map((option, index) => (
                 <button
-                  key={i}
+                  key={index}
                   className={getOptionClass(option)}
                   onClick={() => !showModal && handleAnswer(option)}
-                  disabled={showModal}
+                  disabled={showModal || isLoading}
                 >
                   {option}
                 </button>
               ))}
             </div>
           </div>
-        </div>
+
+          {isLoading && (
+            <div className="loading-indicator">
+              <p>Загрузка следующего вопроса...</p>
+            </div>
+          )}
+        </>
       )}
 
       {showModal && (
         <GameModal 
           result={gameResult}
-          onClose={gameResult === 'win' ? handleNext : endGame}
-          explanation={quizQuestions[currentTheme][currentQuestion].explanation}
-          reward={gameResult === 'win' ? quizThemes.find(t => t.id === currentTheme).reward : 0}
+          onClose={handleNextQuestion}
+          explanation={currentExplanation}
+          onExit={endGame}
+          reward={15}
         />
       )}
     </div>
