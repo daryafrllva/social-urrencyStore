@@ -5,6 +5,7 @@ from database import *
 import schedule
 import time
 import threading
+from datetime import datetime, timedelta
 
 bot = telebot.TeleBot("7783814922:AAHnHN_U8YlVTuxu8jKkMsqzZ4Gxz3Nh_k0")
 logger = telebot.logger
@@ -100,7 +101,8 @@ menu_keyboard.add(
     types.KeyboardButton("📋 Задания"),
     types.KeyboardButton("🔄 Перевод"),
     types.KeyboardButton("🏆 Рейтинг"),
-    types.KeyboardButton("🛒 Магазин")
+    types.KeyboardButton("🛒 Магазин"),
+    types.KeyboardButton("📜 История")
 )
 
 
@@ -173,6 +175,26 @@ def process_transfer_amount(message):
             bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
             return
 
+        # Проверка на перевод самому себе
+        if recipient_link.strip('@') == message.from_user.username:
+            bot.send_message(message.chat.id, "❌ Нельзя переводить деньги самому себе!")
+            conn.close()
+            return
+
+        # Проверка количества переводов за сегодня
+        today = datetime.now().date()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT COUNT(*) FROM transfers 
+            WHERE sender_id = ? AND date(transfer_date) = ?
+        ''', (user_id, today))
+        transfers_today = cursor.fetchone()[0]
+
+        if transfers_today >= 3:
+            bot.send_message(message.chat.id, "❌ Вы уже сделали 3 перевода сегодня! Лимит исчерпан.")
+            conn.close()
+            return
+
         recipient = get_user_from_link(conn, recipient_link)
         sender = get_user(conn, user_id)
 
@@ -196,13 +218,16 @@ def process_transfer_amount(message):
 
         bot.send_message(
             message.chat.id,
-            f"Перевод для @{recipient[1]} на {amount} Джоулей\nПодтвердите:",reply_markup=markup
+            f"Перевод для @{recipient[1]} на {amount} Джоулей\nПодтвердите:",
+            reply_markup=markup
         )
         conn.close()
 
     except ValueError:
         bot.send_message(message.chat.id, "❌ Неправильный формат! Используйте: @username сумма")
 
+
+# Обновляем функцию confirm_transfer
 @bot.callback_query_handler(func=lambda call: call.data.startswith('confirm_transfer_'))
 def confirm_transfer(call):
     user_id = call.data.split('_')[-1]
@@ -213,8 +238,17 @@ def confirm_transfer(call):
     sender, recipient, amount = transfers[user_id]
     conn = create_connection()
     if conn:
+        # Записываем перевод в базу
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO transfers (sender_id, recipient_id, amount, transfer_date)
+            VALUES (?, ?, ?, datetime('now'))
+        ''', (sender[0], recipient[0], amount))
+
+        # Выполняем перевод
         do_transfer(conn, sender, recipient, amount)
         conn.close()
+
         bot.send_message(sender[0], f"✅ Перевод @{recipient[1]} на {amount} Джоулей выполнен!")
         bot.send_message(recipient[0], f"💸 Вам перевели {amount} Джоулей от @{sender[1]}")
         bot.delete_message(call.message.chat.id, call.message.message_id)
@@ -379,6 +413,44 @@ def purchase_history(message):
         history_text += f"📅 {item[2]}\n\n"
 
     bot.send_message(message.chat.id, history_text)
+
+
+# Обработчик для кнопки "История"
+@bot.message_handler(func=lambda message: message.text == "📜 История")
+def purchase_history(message):
+    conn = create_connection()
+    if not conn:
+        bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
+        return
+
+    # Получаем историю покупок и переводов
+    purchases = get_purchase_history(conn, message.from_user.id)
+    transfers = get_transfer_history(conn, message.from_user.id)
+    conn.close()
+
+    if not purchases and not transfers:
+        bot.send_message(message.chat.id, "📦 У вас ещё нет истории операций")
+        return
+
+    history_text = "📜 История ваших операций:\n\n"
+
+    # Добавляем покупки
+    if purchases:
+        history_text += "🛍️ <b>Покупки:</b>\n"
+        for item in purchases:
+            history_text += f"🛒 {item[0]} - {item[1]} баллов\n"
+            history_text += f"📅 {item[2]}\n\n"
+
+    # Добавляем переводы
+    if transfers:
+        history_text += "💸 <b>Переводы:</b>\n"
+        for item in transfers:
+            direction = "Отправлен" if item[3] == "out" else "Получен"
+            history_text += f"🔄 {direction} перевод {item[1]} баллов\n"
+            history_text += f"👤 {'@' + item[2] if item[2] else 'пользователь'}\n"
+            history_text += f"📅 {item[0]}\n\n"
+
+    bot.send_message(message.chat.id, history_text, parse_mode="HTML")
 
 if __name__ == "__main__":
     print("Бот запущен...")

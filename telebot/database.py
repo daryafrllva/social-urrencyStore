@@ -110,3 +110,86 @@ def get_purchase_history(conn, user_id, limit=5):
     LIMIT ?
     ''', (user_id, limit))
     return cursor.fetchall()
+
+# database.py (добавляем новую таблицу)
+
+def create_tables(conn):
+    """Создаём таблицы, если их нет"""
+    try:
+        cursor = conn.cursor()
+
+        # Таблица пользователей
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            username TEXT,
+            active_balance INTEGER DEFAULT 0,
+            passive_balance INTEGER DEFAULT 0
+        )
+        ''')
+
+        # Таблица покупок
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS purchases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            product_name TEXT,
+            product_price INTEGER,
+            purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (user_id)
+        )
+        ''')
+
+        # Новая таблица для хранения истории переводов
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS transfers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id INTEGER,
+            recipient_id INTEGER,
+            amount INTEGER,
+            transfer_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (sender_id) REFERENCES users (user_id),
+            FOREIGN KEY (recipient_id) REFERENCES users (user_id)
+        )
+        ''')
+
+        conn.commit()
+    except Error as e:
+        print(e)
+
+
+def get_transfer_history(conn, user_id, limit=10):
+    """Получаем историю переводов пользователя"""
+    cursor = conn.cursor()
+
+    # Получаем исходящие переводы
+    cursor.execute('''
+        SELECT 
+            strftime('%Y-%m-%d %H:%M', transfer_date) as date,
+            amount,
+            (SELECT username FROM users WHERE user_id = recipient_id) as recipient,
+            'out' as direction
+        FROM transfers 
+        WHERE sender_id = ?
+        ORDER BY transfer_date DESC
+        LIMIT ?
+    ''', (user_id, limit))
+    outgoing = cursor.fetchall()
+
+    # Получаем входящие переводы
+    cursor.execute('''
+        SELECT 
+            strftime('%Y-%m-%d %H:%M', transfer_date) as date,
+            amount,
+            (SELECT username FROM users WHERE user_id = sender_id) as sender,
+            'in' as direction
+        FROM transfers 
+        WHERE recipient_id = ?
+        ORDER BY transfer_date DESC
+        LIMIT ?
+    ''', (user_id, limit))
+    incoming = cursor.fetchall()
+
+    # Объединяем и сортируем по дате
+    all_transfers = outgoing + incoming
+    return sorted(all_transfers, key=lambda x: x[0], reverse=True)[:limit]
