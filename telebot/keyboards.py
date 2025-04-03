@@ -7,7 +7,8 @@ menu_keyboard.add(
     KeyboardButton("🔄 Перевод"),
     KeyboardButton("🏆 Рейтинг"),
     KeyboardButton("🛒 Магазин"),
-    KeyboardButton("📜 История")
+    KeyboardButton("📜 История"),
+    KeyboardButton("Help🆘")
 )
 
 admin_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -18,6 +19,7 @@ admin_keyboard.add(
     KeyboardButton("🏆 Рейтинг"),
     KeyboardButton("🛒 Магазин"),
     KeyboardButton("📜 История"),
+    KeyboardButton("Help🆘"),
     KeyboardButton("😡 Выдать штраф"),
     KeyboardButton("⏱️ Сменить время бонуса")
 )

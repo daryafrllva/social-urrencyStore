@@ -100,6 +100,10 @@ def start(message):
         bot.send_message(message.chat.id, 'Вход выполнен.')
         show_menu(message)
 
+# функция при нажатии на соответствующую кнопку
+@bot.message_handler(func=lambda message: message.text == "Help🆘")
+def show_document(message):
+    bot.send_message(message.chat.id, open('instruction_for_buttem_help.txt', 'r', encoding='UTF-8').read(), parse_mode='html')
 
 # функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "📄 Пользовательское соглашение")
