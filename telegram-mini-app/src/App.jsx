@@ -101,4 +101,3 @@ export default function App() {
               {renderGame()}
             </div>
           );
-  }
