@@ -9,7 +9,7 @@ from telebot.util import smart_split
 from database import *
 from keyboards import admin_keyboard, menu_keyboard, cancel_keyboard
 
-bot = telebot.TeleBot("7978762893:AAEFdVSybzJp-GQIWv6G_Ok_XidDVttsuzY")
+bot = telebot.TeleBot("7714684338:AAEynrLWSJNoMWcMgWTvZIOakF_pFc4WZ6s")
 logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)
 
@@ -19,7 +19,7 @@ init_db()
 transfers = dict()  # временное хранилище перевода, очищается при успешном или отмененном переводе
 constants = {'rating_size': 5,  # определяет размер рейтингового списка
              'bonus_period': 10,  # определяет время периода выдачи бонуса
-             'bonus_amount': 1000}  
+             'bonus_amount': 1000}
 
 # Список товаров
 PRODUCTS = [
@@ -65,13 +65,13 @@ def word_for_count(nominative_singular: str = 'Джоуль',
                    genitive: str = 'Джоуля',
                    nominative_plural: str = 'Джоулей',
                    count: int = 1):
-    
+
     """Функция, возвращающая правильную форму слова для конкретного количества
     на вход: именительный падеж, родительный падеж, именительный падеж во множественном числе, количество
 
     Пример входных данных: собака, собаки, собак, 3
     Пример выходных данных: собаки"""
-    
+
     if count % 100 in range(5, 21) or count % 10 in range(5, 10) or count % 10 == 0:
         return nominative_plural
     elif count % 10 in range(2, 5):
@@ -153,9 +153,25 @@ def tasks(message):
 # функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "🔄 Перевод")
 def transfer(message):
+    conn = create_connection()
+    transfers_today = get_today_transfers_count(conn, message.chat.id)
+    conn.close()
+
+    if transfers_today >= 3:
+        bot.send_message(message.chat.id,
+                         "❌ Вы уже совершили максимальное количество переводов за сегодня (3).\n"
+                         "Попробуйте завтра.",
+                         reply_markup=menu_keyboard)
+        return
+
+    remaining = 3 - transfers_today
+    word_transfer = word_for_count("перевод", "перевода", "переводов", remaining)
+
     msg = bot.send_message(message.chat.id,
-                           "Введите <b>ссылку</b> на пользователя, <b>сумму перевода</b> "
-                           "и комментарий (опционально) через пробел:\n\nПример: @username 100 Спасибо за помощь)",
+                           f"Введите <b>ссылку</b> на пользователя, <b>сумму перевода</b> "
+                           f"и комментарий (опционально) через пробел:\n\n"
+                           f"Пример: @username 100 Спасибо за помощь)\n\n"
+                           f"Осталось переводов сегодня: {remaining} {word_transfer}",
                            parse_mode='html',
                            reply_markup=cancel_keyboard)
     bot.register_next_step_handler(msg, process_transfer_amount)
@@ -164,6 +180,21 @@ def transfer(message):
 # функция проверки возможности перевода другому пользователю и формирования карточки подтверждения перевода
 def process_transfer_amount(message):
     try:
+        # Проверяем количество переводов за сегодня
+        conn = create_connection()
+        if not conn:
+            bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
+            return
+
+        transfers_today = get_today_transfers_count(conn, message.chat.id)
+        if transfers_today >= 3:
+            bot.send_message(message.chat.id,
+                             "❌ Вы уже совершили максимальное количество переводов за сегодня (3).\n"
+                             "Попробуйте завтра.",
+                             reply_markup=menu_keyboard)
+            conn.close()
+            return
+
         data = message.text.split()
         if len(data) < 2:
             raise ValueError
@@ -175,11 +206,7 @@ def process_transfer_amount(message):
 
         if amount <= 0:
             bot.send_message(message.chat.id, "❌ Сумма должна быть положительной!")
-            return
-
-        conn = create_connection()
-        if not conn:
-            bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
+            conn.close()
             return
 
         recipient = get_user_from_link(conn, recipient_link)
@@ -202,6 +229,9 @@ def process_transfer_amount(message):
 
         transfers[str(user_id)] = (sender, recipient, amount, comment)
 
+        remaining_transfers = 3 - transfers_today - 1  # -1 потому что текущий перевод ещё не совершён
+        word_transfer = word_for_count("перевод", "перевода", "переводов", remaining_transfers)
+
         markup = types.InlineKeyboardMarkup()
         markup.add(
             types.InlineKeyboardButton("✅ Подтвердить", callback_data=f"confirm_transfer_{user_id}"),
@@ -211,6 +241,7 @@ def process_transfer_amount(message):
         confirmation_message = f"Перевод для @{recipient[1]} на {amount} {word_for_count(count=amount)}."
         if comment:
             confirmation_message += f"\nКомментарий: {comment}"
+        confirmation_message += f"\n\nОсталось переводов сегодня: {remaining_transfers} {word_transfer}"
         confirmation_message += "\nПодтвердите:"
 
         bot.send_message(
@@ -223,7 +254,6 @@ def process_transfer_amount(message):
         bot.send_message(message.chat.id, "❌ Неправильный формат! Используйте: @username сумма [комментарий]")
 
 
-# функция при подтверждении перевода пользователю
 @bot.callback_query_handler(func=lambda call: call.data.startswith('confirm_transfer_'))
 def confirm_transfer(call):
     user_id = call.data.split('_')[-1]
@@ -235,6 +265,15 @@ def confirm_transfer(call):
     conn = create_connection()
     if conn:
         do_transfer(conn, sender, recipient, amount)
+
+        # Записываем перевод в базу данных
+        cursor = conn.cursor()
+        cursor.execute('''
+        INSERT INTO transfers (sender_id, recipient_id, amount)
+        VALUES (?, ?, ?)
+        ''', (sender[0], recipient[0], amount))
+        conn.commit()
+
         conn.close()
 
         # Сообщение отправителю
@@ -460,12 +499,14 @@ def purchase_history(message):
         history_text += "💸 <b>Переводы:</b>\n"
         for item in transfers:
             direction = "Отправлен" if item[3] == "out" else "Получен"
-            history_text += f"🔄 {direction} перевод {item[1]} {word_for_count(count=item[1])}\n"
-            history_text += f"👤 {'@' + item[2] if item[2] else 'пользователь'}\n"
+            username = item[2] if item[2] else "пользователь"
+            history_text += f"🔄 {direction} перевод {item[1]} баллов\n"
+            history_text += f"👤 @{username}\n" if username != "пользователь" else f"👤 {username}\n"
             history_text += f"📅 {item[0]}\n\n"
 
-    bot.send_message(message.chat.id, history_text, parse_mode="HTML")
-
+    # Разбиваем сообщение на части, если оно слишком длинное
+    for part in smart_split(history_text):
+        bot.send_message(message.chat.id, part, parse_mode="HTML")
 
 # функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "😡 Выдать штраф")
