@@ -9,7 +9,7 @@ from telebot.util import smart_split
 from database import *
 from keyboards import admin_keyboard, menu_keyboard, cancel_keyboard
 
-bot = telebot.TeleBot("7714684338:AAEynrLWSJNoMWcMgWTvZIOakF_pFc4WZ6s")
+bot = telebot.TeleBot("7978762893:AAEFdVSybzJp-GQIWv6G_Ok_XidDVttsuzY")
 logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)
 
@@ -80,6 +80,7 @@ def word_for_count(nominative_singular: str = 'Джоуль',
 @bot.message_handler(commands=['start'])
 def start(message):
     conn = create_connection()
+    bot.send_message(message.chat.id, open('greeting.txt', 'r', encoding='UTF-8').read(), parse_mode='html')
     if not get_user(conn, message.chat.id):
         add_user(conn, message.chat.id, message.from_user.username)
         update_balance(conn, message.chat.id, 100, 100)
@@ -88,8 +89,8 @@ def start(message):
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(types.KeyboardButton("📄 Пользовательское соглашение"))
         markup.add(types.KeyboardButton("✅ Принять"))
-        bot.send_message(message.chat.id, "Добро пожаловать!\n\n"
-                                          "🔐 Для использования бота необходимо принять пользовательское соглашение:",
+
+        bot.send_message(message.chat.id, "🔐 Для использования бота необходимо принять пользовательское соглашение:",
                          reply_markup=markup)
     else:
         bot.send_message(message.chat.id, 'Вход выполнен.')
