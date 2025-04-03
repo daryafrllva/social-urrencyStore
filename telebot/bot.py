@@ -141,7 +141,7 @@ def balance(message):
 @bot.message_handler(func=lambda message: message.text == "📋 Задания")
 def tasks(message):
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("🗂 Перейти к заданиям", url="https://example.com/tasks"))
+    markup.add(types.InlineKeyboardButton("🗂 Перейти к заданиям", url="https://8c60-115-37-139-49.ngrok-free.app/"))
     bot.send_message(message.chat.id, "Задания доступны в нашем веб-приложении:", reply_markup=markup)
 
 
