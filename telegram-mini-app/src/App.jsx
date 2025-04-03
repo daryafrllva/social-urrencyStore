@@ -1,126 +1,62 @@
-import { useState, useEffect } from 'react';
-// import { WebApp } from '@twa-dev/sdk'; // Закомментировано для работы в вебе
-import UserProfile from "../components/auth/UserProfile";
-import "../styles/game.css";
-import "../components/game/RockPaperScissors";
+import { useState } from "react";
+import RockPaperScissors from "./assets/components/game/RockPaperScissors";
+import CoinGame from "./assets/components/game/CoinGame";
+import "./styles/game.css"; 
+import "./App.css";
 
-export default function RockPaperScissors() {
-  const [account, setAccount] = useState(null);
-  const [tokenBalance, setTokenBalance] = useState("0");
-  const [result, setResult] = useState(null);
-  const [showPrize, setShowPrize] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [prizeClaimed, setPrizeClaimed] = useState(false);
+export default function App() {
+  const [currentGame, setCurrentGame] = useState(null); 
+  const [userBalance, setUserBalance] = useState(0); //Для добавления счёта
 
-  // Инициализация Telegram WebApp - закомментировано для веба
-  useEffect(() => {
-    // WebApp.ready(); // Закомментировано для веба
-    // WebApp.expand(); // Закомментировано для веба
-
-    // Получаем данные пользователя из Telegram - заменим на заглушку для веба
-    // if (WebApp.initDataUnsafe?.user) {
-    //   const tgUser = WebApp.initDataUnsafe.user;
-    //   setAccount({
-    //     address: tgUser.id.toString(),
-    //     username: tgUser.username || `user_${tgUser.id}`
-    //   });
-    // }
-
-    // Для веба временно создадим фейковые данные пользователя
-    setAccount({
-      address: 'demo', // Заглушка для адреса
-      username: 'demo_user' // Заглушка для имени пользователя
-    });
-
-  }, []);
-
-  // Обработка выбора игрока
-  const handleChoice = (playerChoice) => {
-    const choices = ['Rock', 'Paper', 'Scissors'];
-    const computerChoice = choices[Math.floor(Math.random() * choices.length)];
-    const gameResult = determineWinner(playerChoice, computerChoice);
-    
-    setResult({ playerChoice, computerChoice, gameResult });
-    setShowPrize(gameResult === 'Win');
-
-    // Для веба, просто убираем все, что связано с кнопками Telegram
-    // В реальном вебе нужно будет добавить кнопку вручную, если это необходимо
+  const addCoins = (amount) => {
+    setUserBalance(prev => prev + amount);
   };
 
-  // Определение победителя
-  const determineWinner = (playerChoice, computerChoice) => {
-    if (playerChoice === computerChoice) return 'Tie';
-    if (
-      (playerChoice === 'Rock' && computerChoice === 'Scissors') ||
-      (playerChoice === 'Paper' && computerChoice === 'Rock') ||
-      (playerChoice === 'Scissors' && computerChoice === 'Paper')
-    ) {
-      return 'Win';
-    }
-    return 'Lose';
-  };
 
-  // Сброс игры
-  const resetGame = () => {
-    setResult(null);
-    setShowPrize(false);
-    setPrizeClaimed(false);
-    // Закомментируем любые действия с Telegram
-    // WebApp.MainButton.hide(); // Закомментировано для веба
-  };
-
-  // Запрос награды
-  const claimPrize = () => {
-    setShowModal(true);
-    // Закомментируем любые действия с Telegram
-    // WebApp.MainButton.hide(); // Закомментировано для веба
-  };
-
-  // Подтверждение получения награды
-  const confirmClaim = () => {
-    setPrizeClaimed(true);
-    setTokenBalance(prev => (parseFloat(prev) + 10).toString());
-    setShowModal(false);
-
-    // Для веба можно оставить этот вызов или просто убрать
-    // WebApp.sendData(JSON.stringify({
-    //   action: 'prize_claimed',
-    //   amount: 10,
-    //   userId: WebApp.initDataUnsafe.user.id
-    // })); // Закомментировано для веба
-  };
-
-  return (
-    <div className="game-container">
-      {!account ? (
-        <ConnectWallet onConnect={() => setAccount({ address: 'demo', username: 'demo' })} />
-      ) : (
-        <>
-          <UserProfile 
-            account={account} 
-            balance={tokenBalance}
-            onDisconnect={() => setAccount(null)} // Убираем WebApp.close() для веба
-          />
-
-          {!result ? (
-            <GameControls onChoice={handleChoice} />
-          ) : (
-            <GameResult 
-              result={result} 
-              onReset={resetGame}
-              showPrize={showPrize && !prizeClaimed}
-              onClaimPrize={claimPrize}
-            />
-          )}
-
-          {showModal && (
-            <PrizeModal
-              onClose={() => setShowModal(false)}
-              onConfirm={confirmClaim}
-            />
-          )}
-        </>
-      )}
-    </div>
-  );
-}
+  const renderGame = () => {
+    switch(currentGame) {
+      case 'rps':
+        return <RockPaperScissors 
+                 onExit={() => setCurrentGame(null)} 
+                 onWin={() => addCoins(5)} // 5 монет за победу в RPS
+               />;
+      case 'coin':
+        return <CoinGame 
+                 onExit={() => setCurrentGame(null)} 
+                 onWin={() => addCoins(10)} // 10 монет за победу в CoinGame
+               />;
+      
+      
+               default:
+                return (
+                  <div className="home-screen">
+                    <div className="wallet-container">
+                      <WalletIcon className="wallet-icon" />
+                      <span className="wallet-amount">{userBalance}</span>
+                    </div>
+                    <h1>Задания, чтобы заработать монеты</h1>
+                    <div className="game-buttons">
+                      <button 
+                        onClick={() => setCurrentGame('rps')}
+                        className="game-button"
+                      >
+                        Камень-Ножницы-Бумага
+                      </button>
+                      <button 
+                        onClick={() => setCurrentGame('coin')}
+                        className="game-button"
+                      >
+                        Угадай где монетка
+                      </button>
+                    </div>
+                  </div>
+                );
+            }
+          };
+          console.log("Render check:", { currentGame, userBalance });
+          return (
+            <div className="app-container">
+              {renderGame()}
+            </div>
+          );
+  }

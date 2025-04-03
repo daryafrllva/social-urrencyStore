@@ -1,0 +1,70 @@
+
+/* Стили для отображения баланса */
+.balance-display {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 18px;
+  font-weight: bold;
+  background: #f0f0f0;
+  padding: 8px 16px;
+  border-radius: 20px;
+}
+
+.balance-amount {
+  color: #2c3e50;
+}
+
+
+
+
+
+.app-container {
+  text-align: center;
+  padding: 20px;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.app-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f4f4f4; /* Светлый фон */
+  font-family: Arial, sans-serif;
+}
+.home-screen {
+  text-align: center;
+  padding: 20px;
+  border: 2px solid #4fa3e5; /* Голубая рамка */
+  border-radius: 10px; /* Закруглённые углы */
+  background-color: #ffffff;
+  width: 300px; /* Ширина квадратного контейнера */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Тень */
+}
+
+/* Стиль для заголовка */
+.home-screen h1 {
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+/* Стиль для кнопки */
+.start-game-button {
+  background-color: #4fa3e5; /* Голубой цвет */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+/* Эффект при наведении на кнопку */
+.start-game-button:hover {
+  background-color: #357ba1; /* Более тёмный голубой при наведении */
+}

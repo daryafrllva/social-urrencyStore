@@ -1,0 +1,209 @@
+/* Модальное окно */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 300px;
+  width: 100%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.3s ease-out;
+  transform: translateY(0);
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from { 
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Заголовок и текст */
+.modal-content h2 {
+  color: #2c3e50;
+  margin-bottom: 1.2rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.modal-content p {
+  margin-bottom: 1.8rem;
+  color: #555;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+/* Кнопки */
+.modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 1.5rem;
+}
+
+.modal-button {
+  padding: 0.7rem 1.8rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Стили для кнопок в зависимости от результата */
+.modal-button.win {
+  background-color: #4fa3e5;
+  color: white;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.modal-button.lose {
+  background-color: #f44336;
+  color: white;
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+}
+
+/* Эффекты при наведении */
+.modal-button.win:hover {
+  background-color: #5443a0;
+  transform: translateY(-2px);
+}
+
+.modal-button.lose:hover {
+  background-color: #e53935;
+  transform: translateY(-2px);
+}
+
+/* Анимация для кнопок при нажатии */
+.modal-button:active {
+  transform: translateY(1px);
+}
+
+/* Иконки в кнопках (опционально) */
+.modal-button.win::before {
+  content: "🎁";
+  margin-right: 8px;
+}
+
+.modal-button.lose::before {
+  content: "↩️";
+  margin-right: 8px;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 480px) {
+  .modal-content {
+    padding: 1.5rem;
+    margin: 0 15px;
+  }
+  
+  .modal-button {
+    padding: 0.6rem 1.2rem;
+    min-width: 100px;
+  }
+}
+
+
+.coin-game-container {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+  }
+  
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 20px 0;
+  }
+  
+  .square {
+    width: 100px;
+    height: 100px;
+    background-color: #f0f0f0;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  
+  .square:hover {
+    background-color: #e0e0e0;
+  }
+  
+  .square.empty {
+    background-color: #4fa3e5;
+  }
+  
+  .square.checked {
+    background-color: #f44336;
+  }
+  
+  .square.coin {
+    background-color: #FFD700;
+  }
+  
+  .message {
+    font-size: 1.2rem;
+    margin: 15px 0;
+    min-height: 50px;
+  }
+  
+  .restart-button {
+    padding: 10px 20px;
+    background-color: #4fa3e5;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-top: 10px;
+  }
+  
+  .cooldown-message {
+    color: #f44336;
+    font-weight: bold;
+  }
+  
+  .exit-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+  }

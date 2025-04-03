@@ -1,11 +1,14 @@
 import logging
+
 import telebot
 from telebot import types
-from database import *
+
+from threading import Thread
+from time import sleep
 import schedule
-import time
-import threading
-from datetime import datetime, timedelta
+
+from database import *
+from keyboards import admin_keyboard, menu_keyboard
 
 bot = telebot.TeleBot("7783814922:AAHnHN_U8YlVTuxu8jKkMsqzZ4Gxz3Nh_k0")
 logger = telebot.logger
@@ -15,50 +18,9 @@ telebot.logger.setLevel(logging.DEBUG)
 init_db()
 transfers = dict()
 
-# Функция для пассивного дохода
-def add_passive_income():
-    conn = create_connection()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            # Начисляем 1000 баллов всем пользователям
-            cursor.execute("UPDATE users SET passive_balance = passive_balance + 1000")
-            conn.commit()
-            print("Успешно начислен пассивный доход всем пользователям")
-        except Exception as e:
-            print(f"Ошибка при начислении пассивного дохода: {e}")
-        finally:
-            conn.close()
-
-
-# Запуск планировщика в отдельном потоке
-def run_scheduler():
-    schedule.every(3).minutes.do(add_passive_income)
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
-
-# Запускаем планировщик
-scheduler_thread = threading.Thread(target=run_scheduler)
-scheduler_thread.daemon = True
-scheduler_thread.start()
-
-@bot.message_handler(commands=['start'])
-def start(message):
-    conn = create_connection()
-    if conn:
-        add_user(conn, message.chat.id, message.from_user.username)
-        update_balance(conn, message.chat.id, 100, 100)
-        conn.close()
-
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    markup.add(types.KeyboardButton("✅ Согласиться"))
-    bot.send_message(
-        message.chat.id,
-        "🔐 Для использования бота необходимо согласиться на обработку данных.\n\n"
-        "💡 Каждые 3 минуты вам будет начисляться 1000 пассивных баллов!",
-        reply_markup=markup
-    )
+constants = {'rating_size': 5,  # определяет размер рейтингового списка
+             'fake_bonus_time': 1,
+             'bonus_amount': 1000}  # временная переменная, определяет время периода выдачи бонуса
 
 # Список товаров
 PRODUCTS = [
@@ -94,35 +56,55 @@ PRODUCTS = [
     }
 ]
 
-# Клавиатура меню
-menu_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-menu_keyboard.add(
-    types.KeyboardButton("💰 Баланс"),
-    types.KeyboardButton("📋 Задания"),
-    types.KeyboardButton("🔄 Перевод"),
-    types.KeyboardButton("🏆 Рейтинг"),
-    types.KeyboardButton("🛒 Магазин"),
-    types.KeyboardButton("📜 История")
-)
+
+# функция, возвращающая правильную форму слова
+# именительный падеж, родительный падеж, именительный падеж во множественном числе
+# пример входных данных: собака, собаки, собак, 3
+# пример выходных данных: собаки
+def word_for_count(nominative_singular: str = 'Джоуль',
+                   genitive: str = 'Джоуля',
+                   nominative_plural: str = 'Джоулей',
+                   count: int = 1):
+    if count % 100 in range(5, 21) or count % 10 in range(5, 10) or count % 10 == 0:
+        return nominative_plural
+    elif count % 10 in range(2, 5):
+        return genitive
+    else:
+        return nominative_singular
 
 
 @bot.message_handler(commands=['start'])
 def start(message):
     conn = create_connection()
-    if conn:
+    if not get_user(conn, message.chat.id):
         add_user(conn, message.chat.id, message.from_user.username)
         update_balance(conn, message.chat.id, 100, 100)
         conn.close()
 
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    markup.add(types.KeyboardButton("✅ Согласиться"))
-    bot.send_message(message.chat.id, "🔐 Для использования бота необходимо согласиться на обработку данных.",
-                     reply_markup=markup)
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+        markup.add(types.KeyboardButton("📄 Пользовательское соглашение"))
+        markup.add(types.KeyboardButton("✅ Принять"))
+        bot.send_message(message.chat.id, "Добро пожаловать!\n\n"
+                                          "🔐 Для использования бота необходимо принять пользовательское соглашение:",
+                         reply_markup=markup)
+    else:
+        bot.send_message(message.chat.id, 'Вход выполнен.')
+        show_menu(message)
 
 
-@bot.message_handler(func=lambda message: message.text == "✅ Согласиться")
+@bot.message_handler(func=lambda message: message.text == "📄 Пользовательское соглашение")
+def show_document(message):
+    bot.send_document(message.chat.id, open('user_agreement.docx', 'rb'),
+                      caption="📄 Пользовательское соглашение")
+
+
+@bot.message_handler(func=lambda message: message.text == "✅ Принять" or message.text == 'Меню')
 def show_menu(message):
-    bot.send_message(message.chat.id, "👇 Выберите действие:", reply_markup=menu_keyboard)
+    conn = create_connection()
+    user_role = get_user_role(conn, message.chat.id)
+    print(user_role)
+    bot.send_message(message.chat.id, "👇 Выберите действие:",
+                     reply_markup=menu_keyboard if user_role == 'пользователь' else admin_keyboard)
 
 
 @bot.message_handler(func=lambda message: message.text == "💰 Баланс")
@@ -132,13 +114,15 @@ def balance(message):
         user = get_user(conn, message.from_user.id)
         conn.close()
         if user:
-            bot.send_message(
-                message.chat.id,
-                f"Ваши балансы:\n\n"
-                f"Активный: {user[2]} баллов\n"
-                f"Пассивный: {user[3]} баллов\n\n"
-                f"💡 Следующее начисление через 3 минуты"
-            )
+            bot.send_message(message.chat.id,
+                             f"Ваши балансы:"
+                             f"\n\n<b>Активный:</b> {user[2]} {word_for_count(count=user[2])}\n"
+                             f"<b>Пассивный:</b> {user[3]} {word_for_count(count=user[3])}\n\n"
+                             f"<i><b>Активный счёт</b> используется для покупок в магазине или"
+                             f" назначения награды за задания.\nЗарабатывайте Джоули и вырывайтесь в топ Рейтинга!\n\n"
+                             f"<b>Пассивный счёт</b> используется для переводов другим пользователям, "
+                             f"периодически он пополняется системой.</i>",
+                             parse_mode='html')
         else:
             bot.send_message(message.chat.id, "❌ Пользователь не найден!")
 
@@ -146,14 +130,20 @@ def balance(message):
 @bot.message_handler(func=lambda message: message.text == "📋 Задания")
 def tasks(message):
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("Перейти к заданиям", url="https://example.com/tasks"))
+    markup.add(types.InlineKeyboardButton("🗂 Перейти к заданиям", url="https://example.com/tasks"))
     bot.send_message(message.chat.id, "Задания доступны в нашем веб-приложении:", reply_markup=markup)
 
 
 @bot.message_handler(func=lambda message: message.text == "🔄 Перевод")
 def transfer(message):
+    under_keyboard = types.InlineKeyboardMarkup(row_width=1)
+    cancel_button = types.InlineKeyboardButton('Отмена', callback_data='cancel')
+    under_keyboard.add(cancel_button)
     msg = bot.send_message(message.chat.id,
-                           "Введите ссылку на пользователя и сумму перевода через пробел:\nПример: @username 100")
+                           "Введите <b>ссылку</b> на пользователя, <b>сумму перевода</b> "
+                           "и комментарий (опционально) через пробел:\n\nПример: @username 100 Спасибо за помощь)",
+                           parse_mode='html',
+                           reply_markup=under_keyboard)
     bot.register_next_step_handler(msg, process_transfer_amount)
 
 
@@ -175,26 +165,6 @@ def process_transfer_amount(message):
             bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
             return
 
-        # Проверка на перевод самому себе
-        if recipient_link.strip('@') == message.from_user.username:
-            bot.send_message(message.chat.id, "❌ Нельзя переводить деньги самому себе!")
-            conn.close()
-            return
-
-        # Проверка количества переводов за сегодня
-        today = datetime.now().date()
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT COUNT(*) FROM transfers 
-            WHERE sender_id = ? AND date(transfer_date) = ?
-        ''', (user_id, today))
-        transfers_today = cursor.fetchone()[0]
-
-        if transfers_today >= 3:
-            bot.send_message(message.chat.id, "❌ Вы уже сделали 3 перевода сегодня! Лимит исчерпан.")
-            conn.close()
-            return
-
         recipient = get_user_from_link(conn, recipient_link)
         sender = get_user(conn, user_id)
 
@@ -203,8 +173,13 @@ def process_transfer_amount(message):
             conn.close()
             return
 
-        if sender[3] < amount:
+        elif sender[3] < amount:
             bot.send_message(message.chat.id, "❌ Недостаточно средств на пассивном балансе!")
+            conn.close()
+            return
+
+        elif sender[0] == recipient[0]:
+            bot.send_message(message.chat.id, "❌ Нельзя переводить самому себе!")
             conn.close()
             return
 
@@ -218,16 +193,14 @@ def process_transfer_amount(message):
 
         bot.send_message(
             message.chat.id,
-            f"Перевод для @{recipient[1]} на {amount} Джоулей\nПодтвердите:",
-            reply_markup=markup
-        )
+            f"Перевод для @{recipient[1]} на {amount} {word_for_count(count=amount)}.\n"
+            f"Подтвердите:", reply_markup=markup)
         conn.close()
 
     except ValueError:
         bot.send_message(message.chat.id, "❌ Неправильный формат! Используйте: @username сумма")
 
 
-# Обновляем функцию confirm_transfer
 @bot.callback_query_handler(func=lambda call: call.data.startswith('confirm_transfer_'))
 def confirm_transfer(call):
     user_id = call.data.split('_')[-1]
@@ -238,21 +211,13 @@ def confirm_transfer(call):
     sender, recipient, amount = transfers[user_id]
     conn = create_connection()
     if conn:
-        # Записываем перевод в базу
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO transfers (sender_id, recipient_id, amount, transfer_date)
-            VALUES (?, ?, ?, datetime('now'))
-        ''', (sender[0], recipient[0], amount))
-
-        # Выполняем перевод
         do_transfer(conn, sender, recipient, amount)
         conn.close()
-
-        bot.send_message(sender[0], f"✅ Перевод @{recipient[1]} на {amount} Джоулей выполнен!")
-        bot.send_message(recipient[0], f"💸 Вам перевели {amount} Джоулей от @{sender[1]}")
+        bot.send_message(sender[0], f"✅ Перевод @{recipient[1]} на {amount} {word_for_count(count=amount)} выполнен!")
+        bot.send_message(recipient[0], f"💸 Вам перевели {amount} {word_for_count(count=amount)} от @{sender[1]}.")
         bot.delete_message(call.message.chat.id, call.message.message_id)
         del transfers[user_id]
+
 
 @bot.message_handler(func=lambda message: message.text == "🏆 Рейтинг")
 def rating(message):
@@ -261,7 +226,8 @@ def rating(message):
         bot.send_message(message.chat.id, "❌ Ошибка базы данных!")
         return
 
-    top_users = get_top_users(conn)
+    top_users = get_top_users(conn, constants['rating_size'])
+    user_rating_place = get_user_place_in_top(conn, message.chat.id)
     conn.close()
 
     if not top_users:
@@ -270,21 +236,23 @@ def rating(message):
 
     rating_text = "🏆 Топ пользователей:\n\n"
     for i, (username, balance) in enumerate(top_users, 1):
-        rating_text += f"{i}. @{username} - {balance} Джоулей\n"
+        rating_text += f"{i}. @{username} : <b>{balance}</b> {word_for_count(count=balance)}\n"
 
-    bot.send_message(message.chat.id, rating_text)
+    rating_text += f'\n\n...Вы занимаете <b>{user_rating_place}</b> место в рейтинге.' \
+        if user_rating_place > constants['rating_size'] else ''
+
+    bot.send_message(message.chat.id, rating_text, parse_mode='html')
+
 
 @bot.message_handler(func=lambda message: message.text == "🛒 Магазин")
 def shop(message):
     markup = types.InlineKeyboardMarkup()
-    for i, product in enumerate(PRODUCTS):
+    for idx, product in enumerate(PRODUCTS):
         markup.add(
             types.InlineKeyboardButton(
-                f"{product['name']} - {product['price']} баллов",
-                callback_data=f"buy_{i}"
-            )
-        )
-    bot.send_message(message.chat.id, "🛍️ Магазин мерча. Выберите товар:", reply_markup=markup)
+                f"{product['name']} - {product['price']} {word_for_count(count=product['price'])}",
+                callback_data=f"buy_{idx}"))
+    bot.send_message(message.chat.id, "🛍️ Выберите товар:", reply_markup=markup)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('buy_'))
@@ -351,18 +319,16 @@ def confirm_purchase(call):
         return
 
     user = get_user(conn, user_id)
-
     if not user:
         bot.answer_callback_query(call.id, "❌ Пользователь не найден!")
         conn.close()
         return
 
     if user[2] < product['price']:
-        bot.answer_callback_query(
-            call.id,
-            f"❌ Недостаточно активных баллов! Нужно {product['price']}",
-            show_alert=True
-        )
+        bot.answer_callback_query(call.id,
+                                  f"❌ Недостаточно средств! Нужно "
+                                  f"{product['price']} {word_for_count(count=product['price'])}",
+                                  show_alert=True)
         conn.close()
         return
 
@@ -391,6 +357,13 @@ def confirm_purchase(call):
 def cancel_purchase(call):
     bot.delete_message(call.message.chat.id, call.message.message_id)
     bot.answer_callback_query(call.id, "❌ Покупка отменена")
+
+# !!!
+@bot.callback_query_handler(func=lambda call: call.data == 'cancel')
+def cancel_action(call):
+    bot.clear_step_handler_by_chat_id(call.message.chat.id)
+    bot.delete_message(call.message.chat.id, call.message.message_id)
+    bot.answer_callback_query(call.id, "❌ Действие отменено")
 
 
 @bot.message_handler(commands=['history'])
@@ -452,7 +425,105 @@ def purchase_history(message):
 
     bot.send_message(message.chat.id, history_text, parse_mode="HTML")
 
-if __name__ == "__main__":
-    print("Бот запущен...")
-    bot.polling()
 
+@bot.message_handler(func=lambda message: message.text == "😡 Выдать штраф")
+def take_fine(message):
+    conn = create_connection()
+    user_role = get_user_role(conn, message.chat.id)
+
+    if user_role == 'администратор':
+        fine_keyboard = types.InlineKeyboardMarkup(row_width=1)
+        cancel_button = types.InlineKeyboardButton('Отмена', callback_data='cancel')
+        fine_keyboard.add(cancel_button)
+
+        msg = bot.send_message(message.chat.id, 'Введите ссылку на пользователя, '
+                                                'количество изымаемой валюты и комментарий через пробел.'
+                                                '\n\nПример: @test 1000 Плохо себя вёл!', reply_markup=fine_keyboard)
+        bot.register_next_step_handler(msg, take_fine_by_user_link)
+    else:
+        bot.send_message(message.chat.id, 'У вас нет доступа к этому функционалу.',
+                         reply_markup=menu_keyboard)
+
+
+def take_fine_by_user_link(message):
+    try:
+        conn = create_connection()
+        data = message.text.split() + ['']
+        user_link, amount, comment = data[0].strip('@'), int(data[1]), data[2:]
+        user = get_user_from_link(conn, user_link)
+        comment = " ".join(comment)
+
+        if not user:
+            bot.send_message(message.chat.id, "❌ Пользователь не найден!",
+                             reply_markup=admin_keyboard)
+            conn.close()
+            return
+
+        update_balance(conn, user[0], active_balance=user[2] - amount)
+        bot.send_message(message.chat.id,
+                         f'Списание {amount} {word_for_count(count=amount)} со счёта {user[1]} успешно!',
+                         reply_markup=admin_keyboard)
+        bot.send_message(user[0],
+                         f'<b>Вы оштрафованы администратором на {amount} {word_for_count(count=amount)}.</b> '
+                         f'{"Комментарий: " + "<i>" + comment + "</i>" if comment.strip() else ""}',
+                         parse_mode='html')
+
+    except ValueError:
+        bot.send_message(message.chat.id, "❌ Неправильный формат ввода!"
+                                          " Используйте: [@username] [сумма] [комментарий]")
+
+
+@bot.message_handler(func=lambda message: message.text == "⏱️ Сменить время бонуса")
+def change_bonus_time(message):
+    change_keyboard = types.InlineKeyboardMarkup(row_width=1)
+    cancel_button = types.InlineKeyboardButton('Отмена', callback_data='cancel')
+    change_keyboard.add(cancel_button)
+
+    word_minute = word_for_count("минута", "минуты", "минут", constants["fake_bonus_time"])
+
+    bot.send_message(message.chat.id, f'Текущий период зачисления: {constants["fake_bonus_time"]} {word_minute}.'
+                                      f'\n\nВведите новое время <b>в минутах</b> (число):',
+                     reply_markup=change_keyboard,
+                     parse_mode='html')
+    bot.register_next_step_handler(message, do_change_time)
+
+
+def do_change_time(message):
+    try:
+        constants['fake_bonus_time'] = int(message.text)
+        word_minute = word_for_count("минута", "минуты", "минут", constants["fake_bonus_time"])
+        bot.send_message(message.chat.id, f'Успешно! Теперь период зачисления бонуса: '
+                                          f'<b>{constants["fake_bonus_time"]} '
+                                          f'{word_minute}.</b>',
+                         parse_mode='html')
+
+        job = schedule.get_jobs()[0]  # отмена предыдущей задачи
+        schedule.cancel_job(job)
+        Thread(target=scheduler).start()  # создание новой задачи с другим периодом
+
+    except ValueError:
+        bot.send_message(message.chat.id, "❌ Неправильный формат ввода! "
+                                          "Введите число без дополнительных знаков.")
+
+
+def scheduler():
+    schedule.every(constants['fake_bonus_time']).minutes.do(periodic_bonus)
+    while True:
+        sleep(1)
+        schedule.run_pending()
+        if not schedule.get_jobs():
+            break
+
+
+def periodic_bonus():
+    conn = create_connection()
+    user_ids = get_users(conn)
+    for user in user_ids:
+        update_balance(conn, user[0], passive_balance=user[3] + constants['bonus_amount'])
+        bot.send_message(user[0], f'Вам зачислен бонус на пассивный счёт в размере {constants["bonus_amount"]} '
+                                  f'{word_for_count(count=constants["bonus_amount"])}.')
+
+
+if __name__ == "__main__":
+    Thread(target=scheduler).start()
+    bot.infinity_polling()
