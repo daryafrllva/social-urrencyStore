@@ -7,7 +7,7 @@ export default function App() {
   const [showGame, setShowGame] = useState(false); // Управление отображением игры
 
   return (
-    <div className="app-container">
+    <div className="app-container"> // Можно трогать
       {!showGame ? (
         // Главный экран с кнопкой запуска
         <div className="home-screen">
