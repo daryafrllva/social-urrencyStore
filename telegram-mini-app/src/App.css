@@ -16,6 +16,30 @@ h1 {
   margin: 0;
 }
 
+/* Стили для отображения баланса */
+.tg-balance {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--tg-theme-secondary-bg-color, #f4f4f4);
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-weight: bold;
+}
+
+.tg-close-btn {
+  background: var(--tg-theme-button-color, #50a8eb);
+  color: var(--tg-theme-button-text-color, #ffffff);
+  border: none;
+  border-radius: 10px;
+  padding: 5px 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
 .app-container {
   display: flex;
   text-align: center;
@@ -107,7 +131,6 @@ h1 {
 
 /* КОНЕЦ Стилей для больших кнопок выбора игр */
 
-
 .home-screen {
   background-color: #0063DE;
   display: block;
@@ -119,7 +142,7 @@ h1 {
 }
 
 /* Стиль для кнопок */
-.start-game-button {
+.game-button {
   background-color: #4fa3e5;
   /* Голубой цвет */
   color: white;
@@ -133,7 +156,7 @@ h1 {
 }
 
 /* Эффект при наведении на кнопку */
-.start-game-button:hover {
+.game-button:hover {
   background-color: #357ba1;
   /* Более тёмный голубой при наведении */
 }

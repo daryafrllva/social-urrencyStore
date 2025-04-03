@@ -1,15 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import GameControls from './GameControls';
 import GameResult from './GameResult';
 import PrizeModal from './PrizeModal';
 import '../../../styles/game.css';
 
-export default function RockPaperScissors({ onExit }) {
+export default function RockPaperScissors({ onExit, onWin }) {
   // Состояния игры
   const [result, setResult] = useState(null);
   const [showPrize, setShowPrize] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [prizeClaimed, setPrizeClaimed] = useState(false);
+  const [tgReady, setTgReady] = useState(false); 
+
+  useEffect(() => {
+    if (window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      tg.expand();
+      setTgReady(true);
+    }
+  }, []);
 
  
   const handleChoice = (playerChoice) => {
@@ -22,7 +31,11 @@ export default function RockPaperScissors({ onExit }) {
       computerChoice, 
       gameResult 
     });
-    setShowPrize(gameResult === 'Победа');
+
+    if (gameResult === 'Победа' && !prizeClaimed) {
+      setShowPrize(true);
+      onWin();
+    }
   };
 
  
@@ -52,11 +65,28 @@ export default function RockPaperScissors({ onExit }) {
   const confirmClaim = () => {
     setPrizeClaimed(true);
     setShowModal(false);
-    alert('Приз получен! +10 монет');
+    if (window.Telegram?.WebApp) { // Проверяем напрямую, а не через состояние
+      window.Telegram.WebApp.sendData(JSON.stringify({
+        action: 'prize_claimed',
+        game: 'rock_paper_scissors',
+        prize: 5
+      }));
+    }
   };
+
+  
 
   return (
     <div className="game-screen">
+      {tgReady && (
+        <button 
+          onClick={() => window.Telegram.WebApp?.close()}
+          className="tg-close-btn"
+        >
+          Закрыть игру
+        </button>
+      )}
+      
       <button onClick={onExit} className="back-button">
         ← На главную
       </button>
