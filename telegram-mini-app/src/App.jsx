@@ -5,14 +5,9 @@ import "./styles/game.css";
 import "./App.css";
 import './assets/fonts/fonts.css';
 
-
-
-
 export default function App() {
   const [currentGame, setCurrentGame] = useState(null); 
-  
-
-  
+    
   const renderGame = () => {
     switch(currentGame) {
       case 'rps':
