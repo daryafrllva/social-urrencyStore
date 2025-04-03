@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import '../../../styles/coin-game.css';
 import GameModal from './GameModal';
 
-export default function CoinGame({ onExit, onWin }) {
+export default function CoinGame({ onExit, /*onWin*/ }) {
   const [grid, setGrid] = useState(Array(9).fill(null));
   const [coinPosition, setCoinPosition] = useState(null);
   const [gameEnded, setGameEnded] = useState(false);
@@ -32,7 +32,7 @@ export default function CoinGame({ onExit, onWin }) {
     if (index === coinPosition) {
       newGrid[index] = 'coin';
       setGameResult('win');
-      onWin();
+     // onWin();
     } else {
       setGameResult('lose');
     }
