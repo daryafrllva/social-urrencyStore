@@ -9,7 +9,7 @@ from telebot.util import smart_split
 from database import *
 from keyboards import admin_keyboard, menu_keyboard, cancel_keyboard
 
-bot = telebot.TeleBot("7714684338:AAEynrLWSJNoMWcMgWTvZIOakF_pFc4WZ6s")
+bot = telebot.TeleBot("7783814922:AAHnHN_U8YlVTuxu8jKkMsqzZ4Gxz3Nh_k0")
 logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)
 
@@ -27,7 +27,7 @@ PRODUCTS = [
         "name": "🖊️ Премиум ручка",
         "description": "Эксклюзивная ручка с логотипом проекта",
         "price": 1500,
-        "image": "https://storage.yandexcloud.net/mostro-gm-media/ea9ede2f-968c-9ddd-5cb0-afa64553bf12/4.jpg"
+        "image": "https://brandmedia.su/wa-data/public/photos/73/06/673/673.970x0@2x.jpg"
     },
     {
         "name": "📔 Блокнот PRO",
@@ -49,8 +49,8 @@ PRODUCTS = [
         "name": "📖 Открытка на 23 февраля",
         "description": "Эксклюзивная открытка на 23 февраля ",
         "price": 50,
-        "image": "https://s8.stc.all.kpcdn.net/family/wp-content/uploads/2024/02/"
-                 "title-photo-in-otkrytki-s-23-fevralja-960x540-1.jpg"
+        "image": "https://mosballoon.ru/image/cache/catalog/photo/otkritka_mini_28-800x800.jpg"
+
     },
     {
         "name": "🏖 путёвка на Байкал",
@@ -153,7 +153,9 @@ def process_transfer_amount(message):
         if len(data) < 2:
             raise ValueError
 
-        recipient_link, amount = data[0], int(data[1])
+        recipient_link = data[0]
+        amount = int(data[1])
+        comment = ' '.join(data[2:]) if len(data) > 2 else ''
         user_id = message.chat.id
 
         if amount <= 0:
@@ -183,7 +185,7 @@ def process_transfer_amount(message):
             conn.close()
             return
 
-        transfers[str(user_id)] = (sender, recipient, amount)
+        transfers[str(user_id)] = (sender, recipient, amount, comment)
 
         markup = types.InlineKeyboardMarkup()
         markup.add(
@@ -191,14 +193,19 @@ def process_transfer_amount(message):
             types.InlineKeyboardButton("❌ Отменить", callback_data="cancel")
         )
 
+        confirmation_message = f"Перевод для @{recipient[1]} на {amount} {word_for_count(count=amount)}."
+        if comment:
+            confirmation_message += f"\nКомментарий: {comment}"
+        confirmation_message += "\nПодтвердите:"
+
         bot.send_message(
             message.chat.id,
-            f"Перевод для @{recipient[1]} на {amount} {word_for_count(count=amount)}.\n"
-            f"Подтвердите:", reply_markup=markup)
+            confirmation_message,
+            reply_markup=markup)
         conn.close()
 
     except ValueError:
-        bot.send_message(message.chat.id, "❌ Неправильный формат! Используйте: @username сумма")
+        bot.send_message(message.chat.id, "❌ Неправильный формат! Используйте: @username сумма [комментарий]")
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('confirm_transfer_'))
@@ -208,13 +215,24 @@ def confirm_transfer(call):
         bot.answer_callback_query(call.id, "❌ Данные перевода утеряны")
         return
 
-    sender, recipient, amount = transfers[user_id]
+    sender, recipient, amount, comment = transfers[user_id]
     conn = create_connection()
     if conn:
         do_transfer(conn, sender, recipient, amount)
         conn.close()
-        bot.send_message(sender[0], f"✅ Перевод @{recipient[1]} на {amount} {word_for_count(count=amount)} выполнен!")
-        bot.send_message(recipient[0], f"💸 Вам перевели {amount} {word_for_count(count=amount)} от @{sender[1]}.")
+
+        # Сообщение отправителю
+        sender_message = f"✅ Вы перевели @{recipient[1]} {amount} {word_for_count(count=amount)}"
+        if comment:
+            sender_message += f"\nКомментарий: {comment}"
+        bot.send_message(sender[0], sender_message)
+
+        # Сообщение получателю
+        recipient_message = f"💸 Вам перевели {amount} {word_for_count(count=amount)} от @{sender[1]}"
+        if comment:
+            recipient_message += f"\nКомментарий: {comment}"
+        bot.send_message(recipient[0], recipient_message)
+
         bot.delete_message(call.message.chat.id, call.message.message_id)
         del transfers[user_id]
 
@@ -282,7 +300,7 @@ def handle_product_selection(call):
             ),
             types.InlineKeyboardButton(
                 "❌ Отмена",
-                callback_data="cancel"
+                callback_data="cancel_purchase"
             )
         )
 
@@ -353,7 +371,7 @@ def confirm_purchase(call):
     conn.close()
 
 
-@bot.callback_query_handler(func=lambda call: call.data == 'cancel')
+@bot.callback_query_handler(func=lambda call: call.data == 'cancel_purchase')
 def cancel_purchase(call):
     bot.delete_message(call.message.chat.id, call.message.message_id)
     bot.answer_callback_query(call.id, "❌ Покупка отменена")
