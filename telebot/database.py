@@ -170,10 +170,10 @@ def get_transfer_history(conn, user_id, limit=10):
     """Получаем историю переводов пользователя"""
     cursor = conn.cursor()
 
-    # Получаем исходящие переводы
+    # Получаем исходящие переводы с московским временем
     cursor.execute('''
         SELECT 
-            strftime('%Y-%m-%d %H:%M', transfer_date) as date,
+            datetime(transfer_date, 'localtime') as date,
             amount,
             (SELECT username FROM users WHERE user_id = recipient_id) as recipient,
             'out' as direction
@@ -184,10 +184,10 @@ def get_transfer_history(conn, user_id, limit=10):
     ''', (user_id, limit))
     outgoing = cursor.fetchall()
 
-    # Получаем входящие переводы
+    # Получаем входящие переводы с московским временем
     cursor.execute('''
         SELECT 
-            strftime('%Y-%m-%d %H:%M', transfer_date) as date,
+            datetime(transfer_date, 'localtime') as date,
             amount,
             (SELECT username FROM users WHERE user_id = sender_id) as sender,
             'in' as direction
@@ -237,3 +237,15 @@ def make_user_admin(conn, user_link):
     else:
         update_user_role(conn, user[0], get_role_id(conn, 'администратор')[0])
         return f'Пользователь @{user_link} успешно стал администратором!'
+
+
+def get_today_transfers_count(conn, user_id):
+    """Получаем количество переводов пользователя за сегодня"""
+    cursor = conn.cursor()
+    cursor.execute('''
+    SELECT COUNT(*) 
+    FROM transfers 
+    WHERE sender_id = ? 
+    AND date(transfer_date, 'localtime') = date('now', 'localtime')
+    ''', (user_id,))
+    return cursor.fetchone()[0]
