@@ -1,0 +1,125 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    color: var(--tg-theme-text-color, #000000);
+}
+
+h1 {
+    font-family: 'Unbounded-Bold', sans-serif;
+    text-align: center;
+    color: #FFFFFF;
+    padding: 0;
+    margin: 0;
+}
+
+.task__list {
+    background-color: #0063DE;
+    display: block;
+    width: 994px;
+    height: 1472.15px;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 59px;
+}
+
+.main__text {
+    width: 637px;
+    height: auto;
+    text-align: center;
+    margin: 0px 192px 0px 165px;
+    padding: 0;
+}
+
+.task__blank {
+    /*ОСНОВНОЙ БЛОК*/
+    background-color: #fff;
+    display: flex;
+    width: 900px;
+    height: 292px;
+    align-items: flex-start;
+    flex: 0 0 auto;
+    margin: 47px 247px 47px 37px;
+    border-radius: 73.02px;
+}
+
+.task__text {
+    /*ПЕРВЫЙ ВЛОЖЕННЫЙ БЛОК*/
+    /* background-color: aqua; */
+    border-radius: 73.02px 0px 0px 0px;
+    display: block;
+    width: 70%;
+    height: 70%;
+    align-items: flex-start;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.task__name {
+    width: auto;
+    height: 50px;
+    padding: 38px 0px 0px 45px;
+    font-weight: 900;
+    /* ПОДКЛЮЧИТЬ ШРИФТ Unbounded */
+}
+
+.task__description {
+    width: auto;
+    height: 64px;
+    padding: 0px 44px 0px 45px;
+    /* ПОДКЛЮЧИТЬ ШРИФТ Montserrat */
+}
+
+.task__owner {
+    width: auto;
+    padding: 0px 44px 0px 45px;
+    font-weight: 600;
+    /* ПОДКЛЮЧИТЬ ШРИФТ Montserrat */
+}
+
+.task__joule {
+    /* background-color: aquamarine; */
+    /*ВТОРОЙ ВЛОЖЕННЫЙ БЛОК*/
+    width: 70%;
+    height: 70%;
+    border-radius: 0px 73.02px 0px 0px;
+}
+
+.task__icon {
+    text-align: center;
+    margin-top: 30%;
+}
+
+.task__price {
+    text-align: center;
+}
+
+/* .task__play { хз как поместить подо всеми
+    display: block;
+    width: 100%;
+    height: auto;
+    text-align: center;
+} */
+
+
+/* ПРИМЕР */
+/* .parent-block {
+    width: 300px;
+    height: 200px;
+    background: #f0f0f0;
+    padding: 20px; */
+/* Отступ внутри родителя */
+/* border: 1px solid #ccc;
+} */
+
+/* .child-block {
+    width: 100%; */
+/* Занимает всю ширину родителя */
+/* height: 100px;
+    background: #007bff;
+    color: white;
+    margin: 0; */
+/* Убираем внешние отступы */
+/* } */

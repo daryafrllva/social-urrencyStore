@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+/* Стиль для компонента игры */
+/* Общие стили для игры */
+=======
 .tg-close-btn {
   position: absolute;
   top: 15px;
@@ -12,6 +16,7 @@
 }
 
   /* Общие стили для игры */
+>>>>>>> 30c821c9113b4e4ffa855aec6228930a13d070c4
 .game-container {
   max-width: 600px;
   margin: 0 auto;
@@ -48,9 +53,17 @@
   margin-top: 20px;
 }
 
-.result-победа { color: #dbe54f; }
-.result-поражение { color: #e74c3c; }
-.result-ничья { color: #3498db; }
+.result-победа {
+  color: #dbe54f;
+}
+
+.result-поражение {
+  color: #e74c3c;
+}
+
+.result-ничья {
+  color: #3498db;
+}
 
 /* Кнопки действий */
 .action-buttons {
@@ -60,7 +73,8 @@
   justify-content: center;
 }
 
-.reset-button, .prize-button {
+.reset-button,
+.prize-button {
   padding: 10px 20px;
   border: none;
   border-radius: 5px;

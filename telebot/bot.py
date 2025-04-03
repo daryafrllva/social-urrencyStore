@@ -9,7 +9,7 @@ from telebot.util import smart_split
 from database import *
 from keyboards import admin_keyboard, menu_keyboard, cancel_keyboard
 
-bot = telebot.TeleBot("7783814922:AAHnHN_U8YlVTuxu8jKkMsqzZ4Gxz3Nh_k0")
+bot = telebot.TeleBot("7755530646:AAEhxMZfz7laITd_Ephw61NpL5AfRgDGii4")
 logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)
 
@@ -100,7 +100,7 @@ def start(message):
         show_menu(message)
 
 # функция при нажатии на соответствующую кнопку
-@bot.message_handler(func=lambda message: message.text == "Help🆘")
+@bot.message_handler(func=lambda message: message.text == "🆘 Помощь")
 def show_document(message):
     bot.send_message(message.chat.id, open('instruction_for_buttem_help.txt', 'r', encoding='UTF-8').read(), parse_mode='html')
 
@@ -145,7 +145,7 @@ def balance(message):
 @bot.message_handler(func=lambda message: message.text == "🎮 Игры")
 def tasks(message):
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("🗂 Перейти к заданиям", url="https://example.com/tasks"))
+    markup.add(types.InlineKeyboardButton("🗂 Перейти к заданиям", url="https://8c60-115-37-139-49.ngrok-free.app/"))
     bot.send_message(message.chat.id, "Задания доступны в нашем веб-приложении:", reply_markup=markup)
 
 

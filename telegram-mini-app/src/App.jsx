@@ -1,101 +1,10 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import { useState, useEffect } from "react";
 import RockPaperScissors from "./assets/components/game/RockPaperScissors";
 import CoinGame from "./assets/components/game/CoinGame";
 import QuizGame from "./assets/components/game/QuizGame";
 import "./styles/game.css"; 
 import "./App.css";
+import './assets/fonts/fonts.css';
 
 // Функция для GET-запроса (можно вынести в отдельный файл api.js)
 const fetchUserBalance = async (userId) => {
@@ -184,41 +93,102 @@ export default function App() {
                />;
       default:
         return (
-          <div className="home-screen">
-            <div className="tg-balance">
-              <span>Баланс: {userBalance} монет</span>
-              {window.Telegram?.WebApp && (
-                <button 
-                  onClick={() => sendDataToTelegram({ action: 'close_app' })}
-                  className="tg-close-btn"
-                >
-                  Закрыть
-                </button>
-              )}
+            <div className="home-screen">
+                <div className="tg-balance">
+                    <span>Баланс: {userBalance} монет</span>
+                    {window.Telegram?.WebApp && (
+                    <button className="tg-close-btn"
+                      onClick={() => sendDataToTelegram({ action: 'close_app' })}>
+                      Закрыть
+                    </button>
+                  )}
+                </div>
+                <h1>Задания, чтобы заработать монеты</h1>
+
+                <div class="task__blank">
+                    <div className="squares">
+                        <div class="task__text">
+                            <div class="task__name">
+                                <p>Камень, ножницы,бумага</p>
+                            </div>
+                            <div class="task__description">
+                                <p>Удержи победную серию 5 раз подряд и получи свою награду</p>
+                            </div>
+                            <div class="task__owner">
+                                <p>Игра: Камень, ножницы, бумага</p>
+                            </div>
+                        </div>
+                        <div class="task__joule">
+                            <div class="task__icon">
+                                <img src="/images/Vector.png" alt="Тут молния" />
+                            </div>
+                            <div class="task__price">
+                                <p>500</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button className="game-button"
+                        onClick={() => setCurrentGame('rps')}>
+                        Играть: Камень-Ножницы-Бумага
+                    </button>
+                </div>
+
+                <div class="task__blank">
+                    <div className="squares">
+                        <div class="task__text">
+                            <div class="task__name">
+                                <p>Угадай где монетка</p>
+                            </div>
+                            <div class="task__description">
+                                <p>Победи в игре 5 раз подряд и получи свою награду</p>
+                            </div>
+                            <div class="task__owner">
+                                <p>Игра: угадай, где монетка</p>
+                            </div>
+                        </div>
+                        <div class="task__joule">
+                            <div class="task__icon">
+                                <img src="/images/Vector.png" alt="Тут молния" />
+                            </div>
+                            <div class="task__price">
+                                <p>500</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button className="game-button"
+                            onClick={() => setCurrentGame('coin')}>
+                            Играть: Угадай где монетка
+                    </button>
+                </div>
+
+                <div class="task__blank">
+                    <div className="squares">
+                        <div class="task__text">
+                            <div class="task__name">
+                                <p>Викторина</p>
+                            </div>
+                            <div class="task__description">
+                                <p>Победи в игре 5 раз подряд и получи свою награду</p>
+                            </div>
+                            <div class="task__owner">
+                                <p>Игра: Викторина</p>
+                            </div>
+                        </div>
+                        <div class="task__joule">
+                            <div class="task__icon">
+                                <img src="/images/Vector.png" alt="Тут молния" />
+                            </div>
+                            <div class="task__price">
+                                <p>500</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button className="game-button"
+                            onClick={() => setCurrentGame('quiz')}>
+                            Играть: Викторина
+                    </button>
+                </div>
             </div>
-            
-            <h1>Выберите игру</h1>
-            <div className="game-buttons">
-              <button 
-                onClick={() => setCurrentGame('rps')}
-                className="game-button"
-              >
-                Камень-Ножницы-Бумага (+5 монет)
-              </button>
-              <button 
-                onClick={() => setCurrentGame('coin')}
-                className="game-button"
-              >
-                Угадай монетку (+10 монет)
-              </button>
-              <button 
-                onClick={() => setCurrentGame('quiz')}
-                className="game-button"
-              >
-                Викторина (+15 монет)
-              </button>
-            </div>
-          </div>
         );
     }
   };
