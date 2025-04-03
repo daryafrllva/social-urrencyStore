@@ -55,6 +55,19 @@ def create_tables(conn):
         )
         ''')
 
+        # Новая таблица для хранения истории переводов
+        cursor.execute('''
+                CREATE TABLE IF NOT EXISTS transfers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    sender_id INTEGER,
+                    recipient_id INTEGER,
+                    amount INTEGER,
+                    transfer_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (sender_id) REFERENCES users (user_id),
+                    FOREIGN KEY (recipient_id) REFERENCES users (user_id)
+                )
+                ''')
+
         conn.commit()
     except Error as e:
         print(e)
@@ -153,6 +166,43 @@ def get_purchase_history(conn, user_id, limit=5):
     return cursor.fetchall()
 
 
+def get_transfer_history(conn, user_id, limit=10):
+    """Получаем историю переводов пользователя"""
+    cursor = conn.cursor()
+
+    # Получаем исходящие переводы
+    cursor.execute('''
+        SELECT 
+            strftime('%Y-%m-%d %H:%M', transfer_date) as date,
+            amount,
+            (SELECT username FROM users WHERE user_id = recipient_id) as recipient,
+            'out' as direction
+        FROM transfers 
+        WHERE sender_id = ?
+        ORDER BY transfer_date DESC
+        LIMIT ?
+    ''', (user_id, limit))
+    outgoing = cursor.fetchall()
+
+    # Получаем входящие переводы
+    cursor.execute('''
+        SELECT 
+            strftime('%Y-%m-%d %H:%M', transfer_date) as date,
+            amount,
+            (SELECT username FROM users WHERE user_id = sender_id) as sender,
+            'in' as direction
+        FROM transfers 
+        WHERE recipient_id = ?
+        ORDER BY transfer_date DESC
+        LIMIT ?
+    ''', (user_id, limit))
+    incoming = cursor.fetchall()
+
+    # Объединяем и сортируем по дате
+    all_transfers = outgoing + incoming
+    return sorted(all_transfers, key=lambda x: x[0], reverse=True)[:limit]
+
+
 def get_roles(conn):  # получить список ролей (id, название)
     cursor = conn.cursor()
     return {role[0]: role[1] for role in cursor.execute("""SELECT * FROM roles""").fetchall()}
@@ -165,7 +215,7 @@ def get_role_id(conn, role_name: str):  # преобразовать назва�
 
 def get_role_name(conn, role: int):  # получить текстовое название роли
     cursor = conn.cursor()
-    return cursor.execute("""SELECT name FROM roles WHERE id=?""", (role,)).fetchone()
+    return cursor.execute("""SELECT name FROM roles WHERE id=?""", (role,)).fetchone()[0]
 
 
 def get_user_role(conn, user_id: int):  # получить текстовое название роли пользователя
