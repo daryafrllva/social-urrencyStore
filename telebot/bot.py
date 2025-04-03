@@ -15,11 +15,11 @@ telebot.logger.setLevel(logging.DEBUG)
 
 # Инициализация базы данных
 init_db()
-transfers = dict()
 
+transfers = dict()  # временное хранилище перевода, очищается при успешном или отмененном переводе
 constants = {'rating_size': 5,  # определяет размер рейтингового списка
-             'fake_bonus_time': 1,
-             'bonus_amount': 1000}  # временная переменная, определяет время периода выдачи бонуса
+             'bonus_period': 10,  # определяет время периода выдачи бонуса
+             'bonus_amount': 1000}  
 
 # Список товаров
 PRODUCTS = [
@@ -61,14 +61,17 @@ PRODUCTS = [
 ]
 
 
-# функция, возвращающая правильную форму слова
-# именительный падеж, родительный падеж, именительный падеж во множественном числе
-# пример входных данных: собака, собаки, собак, 3
-# пример выходных данных: собаки
 def word_for_count(nominative_singular: str = 'Джоуль',
                    genitive: str = 'Джоуля',
                    nominative_plural: str = 'Джоулей',
                    count: int = 1):
+    
+    """Функция, возвращающая правильную форму слова для конкретного количества
+    на вход: именительный падеж, родительный падеж, именительный падеж во множественном числе, количество
+
+    Пример входных данных: собака, собаки, собак, 3
+    Пример выходных данных: собаки"""
+    
     if count % 100 in range(5, 21) or count % 10 in range(5, 10) or count % 10 == 0:
         return nominative_plural
     elif count % 10 in range(2, 5):
@@ -77,6 +80,7 @@ def word_for_count(nominative_singular: str = 'Джоуль',
         return nominative_singular
 
 
+# функция при запуске бота
 @bot.message_handler(commands=['start'])
 def start(message):
     conn = create_connection()
@@ -97,21 +101,23 @@ def start(message):
         show_menu(message)
 
 
+# функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "📄 Пользовательское соглашение")
 def show_document(message):
     bot.send_document(message.chat.id, open('user_agreement.docx', 'rb'),
                       caption="📄 Пользовательское соглашение")
 
 
+# функция при нажатии на соответствующую кнопку или написании пользователем соотв. текстового сообщения
 @bot.message_handler(func=lambda message: message.text == "✅ Принять" or message.text == 'Меню')
 def show_menu(message):
     conn = create_connection()
     user_role = get_user_role(conn, message.chat.id)
-    print(user_role)
     bot.send_message(message.chat.id, "👇 Выберите действие:",
                      reply_markup=menu_keyboard if user_role == 'пользователь' else admin_keyboard)
 
 
+# функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "💰 Баланс")
 def balance(message):
     conn = create_connection()
@@ -132,6 +138,7 @@ def balance(message):
             bot.send_message(message.chat.id, "❌ Пользователь не найден!")
 
 
+# функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "📋 Задания")
 def tasks(message):
     markup = types.InlineKeyboardMarkup()
@@ -139,6 +146,7 @@ def tasks(message):
     bot.send_message(message.chat.id, "Задания доступны в нашем веб-приложении:", reply_markup=markup)
 
 
+# функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "🔄 Перевод")
 def transfer(message):
     msg = bot.send_message(message.chat.id,
@@ -149,6 +157,7 @@ def transfer(message):
     bot.register_next_step_handler(msg, process_transfer_amount)
 
 
+# функция проверки возможности перевода другому пользователю и формирования карточки подтверждения перевода
 def process_transfer_amount(message):
     try:
         data = message.text.split()
@@ -210,6 +219,7 @@ def process_transfer_amount(message):
         bot.send_message(message.chat.id, "❌ Неправильный формат! Используйте: @username сумма [комментарий]")
 
 
+# функция при подтверждении перевода пользователю
 @bot.callback_query_handler(func=lambda call: call.data.startswith('confirm_transfer_'))
 def confirm_transfer(call):
     user_id = call.data.split('_')[-1]
@@ -239,6 +249,7 @@ def confirm_transfer(call):
         del transfers[user_id]
 
 
+# функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "🏆 Рейтинг")
 def rating(message):
     conn = create_connection()
@@ -264,6 +275,7 @@ def rating(message):
     bot.send_message(message.chat.id, rating_text, parse_mode='html')
 
 
+# функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "🛒 Магазин")
 def shop(message):
     markup = types.InlineKeyboardMarkup()
@@ -275,6 +287,7 @@ def shop(message):
     bot.send_message(message.chat.id, "🛍️ Выберите товар:", reply_markup=markup)
 
 
+# функция показа карточки товара с кнопками купить и отменить
 @bot.callback_query_handler(func=lambda call: call.data.startswith('buy_'))
 def handle_product_selection(call):
     try:
@@ -313,8 +326,8 @@ def handle_product_selection(call):
             caption=(
                 f"<b>{product['name']}</b>\n\n"
                 f"{product['description']}\n\n"
-                f"💵 Цена: {product['price']} активных баллов\n"
-                f"💰 Ваш баланс: {user[2]} баллов"
+                f"💵 Цена: {product['price']} активных {word_for_count(count=product['price'])}\n"
+                f"💰 Ваш баланс: {user[2]} {word_for_count(count=product['price'])}"
             ),
             parse_mode="HTML",
             reply_markup=markup
@@ -327,6 +340,7 @@ def handle_product_selection(call):
         bot.answer_callback_query(call.id, "❌ Произошла ошибка!")
 
 
+# функция при подтверждении покупки пользователем
 @bot.callback_query_handler(func=lambda call: call.data.startswith('confirm_'))
 def confirm_purchase(call):
     product_id = int(call.data.split('_')[1])
@@ -364,8 +378,8 @@ def confirm_purchase(call):
         caption=(
             f"🎉 Поздравляем с покупкой!\n\n"
             f"<b>{product['name']}</b>\n"
-            f"💰 Потрачено: {product['price']} баллов\n"
-            f"💳 Новый баланс: {new_balance} баллов\n\n"
+            f"💰 Потрачено: {product['price']} {word_for_count(count=product['price'])}\n"
+            f"💳 Новый баланс: {new_balance} {word_for_count(count=new_balance)}\n\n"
             "🛍️ Ожидайте товар!"
         ),
         parse_mode="HTML"
@@ -373,12 +387,14 @@ def confirm_purchase(call):
     conn.close()
 
 
+# функция отмены покупки
 @bot.callback_query_handler(func=lambda call: call.data == 'cancel_purchase')
 def cancel_purchase(call):
     bot.delete_message(call.message.chat.id, call.message.message_id)
     bot.answer_callback_query(call.id, "❌ Покупка отменена")
 
 
+# универсальная функция отмены ввода каких-либо данных
 @bot.callback_query_handler(func=lambda call: call.data == 'cancel')
 def cancel_action(call):
     bot.clear_step_handler_by_chat_id(call.message.chat.id)
@@ -386,6 +402,7 @@ def cancel_action(call):
     bot.answer_callback_query(call.id, "❌ Действие отменено")
 
 
+# функция при отправке команды /history
 @bot.message_handler(commands=['history'])
 def purchase_history(message):
     conn = create_connection()
@@ -402,7 +419,7 @@ def purchase_history(message):
 
     history_text = "📜 История ваших покупок:\n\n"
     for item in history:
-        history_text += f"🛒 {item[0]} - {item[1]} баллов\n"
+        history_text += f"🛒 {item[0]} - {item[1]} {word_for_count(count=item[1])}\n"
         history_text += f"📅 {item[2]}\n\n"
 
     bot.send_message(message.chat.id, history_text)
@@ -431,7 +448,7 @@ def purchase_history(message):
     if purchases:
         history_text += "🛍️ <b>Покупки:</b>\n"
         for item in purchases:
-            history_text += f"🛒 {item[0]} - {item[1]} баллов\n"
+            history_text += f"🛒 {item[0]} - {item[1]} {word_for_count(count=item[1])}\n"
             history_text += f"📅 {item[2]}\n\n"
 
     # Добавляем переводы
@@ -439,13 +456,14 @@ def purchase_history(message):
         history_text += "💸 <b>Переводы:</b>\n"
         for item in transfers:
             direction = "Отправлен" if item[3] == "out" else "Получен"
-            history_text += f"🔄 {direction} перевод {item[1]} баллов\n"
+            history_text += f"🔄 {direction} перевод {item[1]} {word_for_count(count=item[1])}\n"
             history_text += f"👤 {'@' + item[2] if item[2] else 'пользователь'}\n"
             history_text += f"📅 {item[0]}\n\n"
 
     bot.send_message(message.chat.id, history_text, parse_mode="HTML")
 
 
+# функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "😡 Выдать штраф")
 def take_fine(message):
     conn = create_connection()
@@ -461,6 +479,7 @@ def take_fine(message):
                          reply_markup=menu_keyboard)
 
 
+# функция изымания средств со счета пользователя по запросу администратора (штраф)
 def take_fine_by_user_link(message):
     try:
         conn = create_connection()
@@ -489,28 +508,30 @@ def take_fine_by_user_link(message):
                                           " Используйте: [@username] [сумма] [комментарий]")
 
 
+# функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "⏱️ Сменить время бонуса")
 def change_bonus_time(message):
-    word_minute = word_for_count("минута", "минуты", "минут", constants["fake_bonus_time"])
+    word_minute = word_for_count("минута", "минуты", "минут", constants["bonus_period"])
 
-    bot.send_message(message.chat.id, f'Текущий период зачисления: {constants["fake_bonus_time"]} {word_minute}.'
+    bot.send_message(message.chat.id, f'Текущий период зачисления: {constants["bonus_period"]} {word_minute}.'
                                       f'\n\nВведите новое время <b>в минутах</b> (число):',
                      reply_markup=cancel_keyboard,
                      parse_mode='html')
     bot.register_next_step_handler(message, do_change_time)
 
 
+# функция изменения периодичности выдачи бонуса
 def do_change_time(message):
     global thrd
     try:
-        constants['fake_bonus_time'] = int(message.text)
-        word_minute = word_for_count("минута", "минуты", "минут", constants["fake_bonus_time"])
+        constants['bonus_period'] = int(message.text)
+        word_minute = word_for_count("минута", "минуты", "минут", constants["bonus_period"])
         bot.send_message(message.chat.id, f'Успешно! Теперь период зачисления бонуса: '
-                                          f'<b>{constants["fake_bonus_time"]} '
+                                          f'<b>{constants["bonus_period"]} '
                                           f'{word_minute}.</b>',
                          parse_mode='html')
 
-        if thrd.is_alive():
+        if thrd.is_alive():  # отмена создания нового потока, если он уже есть
             return
         else:
             thrd = Thread(target=periodic_bonus)  # создание новой задачи с другим периодом
@@ -522,17 +543,19 @@ def do_change_time(message):
         return
 
 
+# функция периодического начисления бонуса
 def periodic_bonus():
-    while constants['fake_bonus_time']:
+    while constants['bonus_period']:
         conn = create_connection()
         user_ids = get_users(conn)
         for user in user_ids:
             update_balance(conn, user[0], passive_balance=user[3] + constants['bonus_amount'])
             bot.send_message(user[0], f'Вам зачислен бонус на пассивный счёт в размере {constants["bonus_amount"]} '
                                       f'{word_for_count(count=constants["bonus_amount"])}.')
-        sleep(constants['fake_bonus_time'] * 60)
+        sleep(constants['bonus_period'] * 60)
 
 
+# функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "🗿 Пользователи")
 def get_users_for_admin(message):
     conn = create_connection()
@@ -544,6 +567,7 @@ def get_users_for_admin(message):
         bot.send_message(message.chat.id, msg)
 
 
+# функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "📥 Новый администратор")
 def make_admin(message):
     bot.send_message(message.chat.id, "Введите ссылку на пользователя:\n\n"
@@ -553,6 +577,7 @@ def make_admin(message):
     bot.register_next_step_handler(message, make_admin_by_link)
 
 
+# выдача прав администратора пользователю, если все ок
 def make_admin_by_link(message):
     conn = create_connection()
     result = make_user_admin(conn, message.text.strip('@'))
@@ -563,7 +588,8 @@ def make_admin_by_link(message):
                      'Вам выдали права администратора! Напишите Меню, чтобы обновить клавиатуру меню.')
 
 
+# запуск бота и периодического начисления бонуса
 if __name__ == "__main__":
-    thrd = Thread(target=periodic_bonus)
+    thrd = Thread(target=periodic_bonus)  # отдельный поток для начислений бонусов
     thrd.start()
     bot.infinity_polling()
