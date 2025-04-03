@@ -1,16 +1,15 @@
 import logging
-
-import telebot
-from telebot import types
-
 from threading import Thread
 from time import sleep
+
 import schedule
+import telebot
+from telebot import types
 
 from database import *
 from keyboards import admin_keyboard, menu_keyboard
 
-bot = telebot.TeleBot("7783814922:AAHnHN_U8YlVTuxu8jKkMsqzZ4Gxz3Nh_k0")
+bot = telebot.TeleBot("7714684338:AAEynrLWSJNoMWcMgWTvZIOakF_pFc4WZ6s")
 logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)
 
@@ -40,15 +39,20 @@ PRODUCTS = [
         "name": "🧥 Худи с принтом",
         "description": "Удобное худи с уникальным принтом",
         "price": 5000,
-        "image": "https://sun9-63.userapi.com/s/v1/ig2/HIcM9pHSmM-TSeUiPoDnDpxCU9UsHeH5QtWql8IDwMxRleT1mo0WtqgSu5r4khDc7ywTB62fNdw5yabJBdJ_Vuuz.jpg?quality=95&as=32x43,48x64,72x96,108x144,160x213,240x320,360x480,480x639,540x719,640x853,720x959,1080x1439,1201x1600&from=bu&u=xrd3D3CKlxxcapbeJULbXE202AJx__K9BbZtgldCDXY&cs=453x604"
+        "image": "https://sun9-63.userapi.com/s/v1/ig2/HIcM9pHSmM-TSeUiPoDnDpxCU9UsHeH5"
+                 "QtWql8IDwMxRleT1mo0WtqgSu5r4khDc7ywTB62fNdw5yabJBdJ_Vuuz.jpg?quality="
+                 "95&as=32x43,48x64,72x96,108x144,160x213,240x320,360x480,480x639,540x719,"
+                 "640x853,720x959,1080x1439,1201x1600&from=bu&u=xrd3D3CKlxxcapbeJULbXE202AJ"
+                 "x__K9BbZtgldCDXY&cs=453x604"
     },
-{
+    {
         "name": "📖 Открытка на 23 февраля",
         "description": "Эксклюзивная открытка на 23 февраля ",
         "price": 50,
-        "image": "https://s8.stc.all.kpcdn.net/family/wp-content/uploads/2024/02/title-photo-in-otkrytki-s-23-fevralja-960x540-1.jpg"
+        "image": "https://s8.stc.all.kpcdn.net/family/wp-content/uploads/2024/02/"
+                 "title-photo-in-otkrytki-s-23-fevralja-960x540-1.jpg"
     },
-{
+    {
         "name": "🏖 путёвка на Байкал",
         "description": "Типо отпуск",
         "price": 100000,
@@ -358,6 +362,7 @@ def cancel_purchase(call):
     bot.delete_message(call.message.chat.id, call.message.message_id)
     bot.answer_callback_query(call.id, "❌ Покупка отменена")
 
+
 # !!!
 @bot.callback_query_handler(func=lambda call: call.data == 'cancel')
 def cancel_action(call):
@@ -506,7 +511,7 @@ def do_change_time(message):
                                           "Введите число без дополнительных знаков.")
 
 
-def scheduler():
+def scheduler():  # выполняет функцию periodic_bonus каждые n минут
     schedule.every(constants['fake_bonus_time']).minutes.do(periodic_bonus)
     while True:
         sleep(1)
