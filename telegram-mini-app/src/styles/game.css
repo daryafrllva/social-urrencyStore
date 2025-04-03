@@ -37,7 +37,7 @@
   margin-top: 20px;
 }
 
-.result-победа { color: #2ecc71; }
+.result-победа { color: #dbe54f; }
 .result-поражение { color: #e74c3c; }
 .result-ничья { color: #3498db; }
 
@@ -63,7 +63,7 @@
 }
 
 .prize-button {
-  background: #f39c12;
+  background: #4fa3e5;
   color: white;
 }
 
@@ -96,7 +96,7 @@
 }
 
 .confirm-button {
-  background: #2ecc71;
+  background: #4fa3e5;
   color: white;
 }
 

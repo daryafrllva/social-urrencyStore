@@ -3,7 +3,7 @@ export default function GameResult({ result, onReset, showPrize, onClaimPrize })
       <div className="game-result">
         <div className="choices">
           <p>Ваш выбор: <strong>{result.playerChoice}</strong></p>
-          <p>Выбор компьютера: <strong>{result.computerChoice}</strong></p>
+          <p>Верный ответ: <strong>{result.computerChoice}</strong></p>
         </div>
         
         <h2 className={`result-${result.gameResult.toLowerCase()}`}>
