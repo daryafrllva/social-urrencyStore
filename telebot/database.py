@@ -215,8 +215,25 @@ def get_role_id(conn, role_name: str):  # преобразовать назва�
 
 def get_role_name(conn, role: int):  # получить текстовое название роли
     cursor = conn.cursor()
-    return cursor.execute("""SELECT name FROM roles WHERE id=?""", (role,)).fetchone()
+    return cursor.execute("""SELECT name FROM roles WHERE id=?""", (role,)).fetchone()[0]
 
 
 def get_user_role(conn, user_id: int):  # получить текстовое название роли пользователя
     return get_role_name(conn, get_user(conn, user_id)[4])[0]
+
+
+def update_user_role(conn, user_id, role_id):
+    cursor = conn.cursor()
+    cursor.execute('''UPDATE users SET role=? WHERE user_id=?''', (role_id, user_id))
+    conn.commit()
+
+
+def make_user_admin(conn, user_link):
+    user = get_user_from_link(conn, user_link)
+    if not user:
+        return '❌ Пользователь не существует.'
+    elif get_role_name(conn, user[4]) == 'администратор':
+        return '❌ Пользователь уже имеет права администратора.'
+    else:
+        update_user_role(conn, user[0], get_role_id(conn, 'администратор')[0])
+        return f'Пользователь @{user_link} успешно стал администратором!'
