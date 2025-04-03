@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-/* Стиль для компонента игры */
-/* Общие стили для игры */
-=======
+
 .tg-close-btn {
   position: absolute;
   top: 15px;
@@ -16,7 +13,7 @@
 }
 
   /* Общие стили для игры */
->>>>>>> 30c821c9113b4e4ffa855aec6228930a13d070c4
+
 .game-container {
   max-width: 600px;
   margin: 0 auto;
