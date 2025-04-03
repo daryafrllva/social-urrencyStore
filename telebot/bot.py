@@ -5,6 +5,7 @@ from time import sleep
 import schedule
 import telebot
 from telebot import types
+from telebot.util import smart_split
 
 from database import *
 from keyboards import admin_keyboard, menu_keyboard
@@ -527,6 +528,17 @@ def periodic_bonus():
         update_balance(conn, user[0], passive_balance=user[3] + constants['bonus_amount'])
         bot.send_message(user[0], f'Вам зачислен бонус на пассивный счёт в размере {constants["bonus_amount"]} '
                                   f'{word_for_count(count=constants["bonus_amount"])}.')
+
+
+@bot.message_handler(func=lambda message: message.text == "🗿 Пользователи")
+def get_users_for_admin(message):
+    conn = create_connection()
+    users = get_users(conn)
+    list_string = '\n'.join([f'ID: {user[0]}, ссылка: @{user[1]}, роль: {get_role_name(conn, user[4])}' for user in users])
+    list_string = smart_split(list_string)
+    for msg in list_string:
+        bot.send_message(message.chat.id, msg)
+
 
 
 if __name__ == "__main__":

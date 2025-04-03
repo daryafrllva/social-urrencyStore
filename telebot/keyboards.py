@@ -21,3 +21,4 @@ admin_keyboard.add(
     KeyboardButton("😡 Выдать штраф"),
     KeyboardButton("⏱️ Сменить время бонуса")
 )
+admin_keyboard.add("🗿 Пользователи")

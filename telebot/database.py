@@ -215,7 +215,7 @@ def get_role_id(conn, role_name: str):  # преобразовать назва�
 
 def get_role_name(conn, role: int):  # получить текстовое название роли
     cursor = conn.cursor()
-    return cursor.execute("""SELECT name FROM roles WHERE id=?""", (role,)).fetchone()
+    return cursor.execute("""SELECT name FROM roles WHERE id=?""", (role,)).fetchone()[0]
 
 
 def get_user_role(conn, user_id: int):  # получить текстовое название роли пользователя
