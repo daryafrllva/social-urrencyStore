@@ -6,91 +6,93 @@ import "./styles/game.css";
 import "./App.css";
 import './assets/fonts/fonts.css';
 
-// Функция для GET-запроса (можно вынести в отдельный файл api.js)
-const fetchUserBalance = async (userId) => {
-  try {
-    const response = await fetch(`http://localhost:8000/api/balance?userId=${userId}`);
-    if (!response.ok) {
-      throw new Error('Network response was not ok');
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching user balance:', error);
-    return { balance: 0 }; // Возвращаем 0 в случае ошибки
-  }
-};
-
 export default function App() {
   const [currentGame, setCurrentGame] = useState(null);
   const [userBalance, setUserBalance] = useState(0); 
-  const [userId, setUserId] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [chatId, setChatId] = useState(null);
 
   useEffect(() => {
-    const tg = window.Telegram?.WebApp;
-    if (tg) {
-      tg.expand();
-      tg.enableClosingConfirmation();
-      
-      if (tg.initDataUnsafe?.user) {
-        const user = tg.initDataUnsafe.user;
-        setUserId(user.id);
-        
-        // Загружаем баланс пользователя при инициализации
-        fetchUserBalance(user.id)
-          .then(data => {
-            setUserBalance(data.balance);
-            setIsLoading(false);
-          })
-          .catch(() => setIsLoading(false));
-      } else {
-        setIsLoading(false);
-      }
+    // Пробуем получить chat_id из URL параметров
+    const params = new URLSearchParams(window.location.search);
+    const urlChatId = params.get('chat_id');
+    if (urlChatId) {
+      setChatId(urlChatId);
     } else {
-      setIsLoading(false);
+      // Если нет в URL, пробуем получить из Telegram WebApp
+      const tg = window.Telegram?.WebApp;
+      if (tg) {
+        tg.expand();
+        tg.enableClosingConfirmation();
+        
+        if (tg.initDataUnsafe?.user) {
+          setChatId(tg.initDataUnsafe.user.id.toString());
+        } else if (tg.initDataUnsafe?.chat) {
+          setChatId(tg.initDataUnsafe.chat.id.toString());
+        }
+      }
     }
   }, []);
-
+  
   const sendDataToTelegram = (data) => {
     if (window.Telegram?.WebApp) {
-      window.Telegram.WebApp.sendData(JSON.stringify(data));
+      // Формируем данные для отправки на бэкенд
+      const backendData = {
+        user_id: parseInt(chatId), // Преобразуем в число для бэкенда
+        amount: data.amount,       // Сумма для изменения баланса
+        action: data.action,      // Действие (coins_earned и т.д.)
+        newBalance: data.newBalance // Новый баланс (опционально)
+      };
+      
+      // Отправляем данные в Telegram WebApp и на бэкенд
+      window.Telegram.WebApp.sendData(JSON.stringify(backendData));
+      
+      // Дополнительно можно отправить запрос напрямую на бэкенд
+      fetch('http://localhost:8000/api/update_balance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: parseInt(chatId),
+          amount: data.amount
+        })
+      })
+      .then(response => response.json())
+      .then(data => console.log('Balance updated:', data))
+      .catch(error => console.error('Error updating balance:', error));
     }
   };
-
-  const handleGameComplete = (reward) => {
+  
+  const addCoins = (amount) => {
     setUserBalance(prev => {
-      const newBalance = prev + reward;
+      const newBalance = prev + amount;
       sendDataToTelegram({
-        action: 'update_balance',
-        userId,
-        newBalance,
-        reward
+        action: 'coins_earned',
+        amount: amount,
+        newBalance: newBalance
       });
       return newBalance;
     });
   };
 
   const renderGame = () => {
-    if (isLoading) {
-      return <div className="loading">Загрузка...</div>;
-    }
-
     switch(currentGame) {
       case 'rps':
         return <RockPaperScissors 
                  onExit={() => setCurrentGame(null)} 
-                 onWin={() => handleGameComplete(5)}
+                 onWin={() => addCoins(5)} // 10 монет за победу
                />;
       case 'coin':
         return <CoinGame 
                  onExit={() => setCurrentGame(null)} 
-                 onWin={() => handleGameComplete(10)}
+                 onWin={() => addCoins(10)} // 5 монет за победу
                />;
       case 'quiz': 
-        return <QuizGame 
+      return <QuizGame 
                  onExit={() => setCurrentGame(null)} 
-                 onWin={() => handleGameComplete(15)}
+                 onWin={() => addCoins(15)} // 5 монет за победу
                />;
+      
       default:
         return (
             <div className="home-screen">
@@ -199,3 +201,4 @@ export default function App() {
     </div>
   );
 }
+//в ссылке передаём две переменные 
