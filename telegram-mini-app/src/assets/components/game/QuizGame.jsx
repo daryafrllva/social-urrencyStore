@@ -1,4 +1,3 @@
-// eslint-disable-next-line no-unused-vars
 import { useState, useEffect } from 'react';
 import GameModal from './GameModal';
 import '../../../styles/quiz-game.css';
@@ -37,14 +36,22 @@ const quizQuestions = {
   ]
 };
 
-export default function QuizGame({ onExit }) {
+export default function QuizGame({ onExit, onWin }) {
   const [currentTheme, setCurrentTheme] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [gameResult, setGameResult] = useState(null);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
-  const [currentExplanation, setCurrentExplanation] = useState('');
+  const [tgReady, setTgReady] = useState(false);
+
+  useEffect(() => {
+    if (window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      tg.expand();
+      setTgReady(true);
+    }
+  }, []);
 
   const handleThemeSelect = (themeId) => {
     setCurrentTheme(themeId);
@@ -56,28 +63,42 @@ export default function QuizGame({ onExit }) {
     const currentQuiz = quizQuestions[currentTheme][currentQuestion];
     setSelectedAnswer(selectedOption);
     
-    if (selectedOption === currentQuiz.answer) {
-      setScore(score + 1);
-      setGameResult('win');
-    } else {
-      setGameResult('wrong');
+    const isCorrect = selectedOption === currentQuiz.answer;
+    setGameResult(isCorrect ? 'win' : 'wrong');
+    
+    if (isCorrect) {
+      const newScore = score + 1;
+      setScore(newScore);
+      
+      // Начисляем монеты за каждый правильный ответ
+      const themeReward = quizThemes.find(t => t.id === currentTheme).reward;
+      onWin(themeReward);
     }
     
-    setCurrentExplanation(currentQuiz.explanation || '');
     setShowModal(true);
   };
 
-  const handleNextQuestion = () => {
+  const handleNext = () => {
     setShowModal(false);
     if (currentQuestion < quizQuestions[currentTheme].length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
-      // Игра завершена
       endGame();
     }
   };
 
   const endGame = () => {
+    // Отправляем финальный результат в Telegram
+    if (window.Telegram?.WebApp && score > 0) {
+      const totalReward = score * quizThemes.find(t => t.id === currentTheme).reward;
+      window.Telegram.WebApp.sendData(JSON.stringify({
+        action: 'quiz_completed',
+        score: score,
+        reward: totalReward,
+        theme: quizThemes.find(t => t.id === currentTheme).name
+      }));
+    }
+    
     setCurrentTheme(null);
     setCurrentQuestion(0);
     setShowModal(false);
@@ -85,61 +106,58 @@ export default function QuizGame({ onExit }) {
 
   const getOptionClass = (option) => {
     if (!showModal) return 'option-button';
-    if (option === quizQuestions[currentTheme][currentQuestion].answer) {
-      return 'option-button correct';
-    }
-    if (option === selectedAnswer && gameResult === 'wrong') {
-      return 'option-button incorrect';
-    }
-    return 'option-button';
+    const isCorrect = option === quizQuestions[currentTheme][currentQuestion].answer;
+    return `option-button ${isCorrect ? 'correct' : option === selectedAnswer ? 'incorrect' : ''}`;
   };
 
   return (
     <div className="quiz-game-container">
+      {tgReady && (
+        <button 
+          onClick={() => window.Telegram?.WebApp?.close()}
+          className="tg-close-btn"
+        >
+          Закрыть игру
+        </button>
+      )}
+      
       <button onClick={onExit} className="exit-button">
         ← Назад
       </button>
 
       {!currentTheme ? (
-        <>
-          <h2>Выберите тему викторины!</h2>
+        <div className="theme-selection">
+          <h2>Выберите тему викторины</h2>
           <div className="theme-grid">
-            {quizThemes.map((theme) => (
+            {quizThemes.map(theme => (
               <button
                 key={theme.id}
                 className="theme-button"
                 onClick={() => handleThemeSelect(theme.id)}
               >
                 {theme.name}
+                <span className="reward-badge">+{theme.reward} монет/вопрос</span>
               </button>
             ))}
           </div>
-        </>
+        </div>
       ) : (
-        <>
-          <div className="progress-container">
-            <div className="progress-text">
-              Вопрос {currentQuestion + 1} из {quizQuestions[currentTheme].length}
-            </div>
-            <div className="progress-bar">
-              <div 
-                className="progress-fill" 
-                style={{
-                  width: `${((currentQuestion + 1) / quizQuestions[currentTheme].length) * 100}%`
-                }}
-              ></div>
-            </div>
+        <div className="quiz-content">
+          <div className="quiz-header">
+            <span className="theme-name">{quizThemes.find(t => t.id === currentTheme).name}</span>
+            <span className="score">Счет: {score}</span>
           </div>
-
-          <h2>Тема: {quizThemes.find(t => t.id === currentTheme).name}</h2>
-          <div className="score-display">Счет: {score}</div>
           
-          <div className="question-container">
+          <div className="progress">
+            Прогресс: {currentQuestion + 1}/{quizQuestions[currentTheme].length}
+          </div>
+          
+          <div className="question">
             <h3>{quizQuestions[currentTheme][currentQuestion].text}</h3>
-            <div className="options-grid">
-              {quizQuestions[currentTheme][currentQuestion].options.map((option, index) => (
+            <div className="options">
+              {quizQuestions[currentTheme][currentQuestion].options.map((option, i) => (
                 <button
-                  key={index}
+                  key={i}
                   className={getOptionClass(option)}
                   onClick={() => !showModal && handleAnswer(option)}
                   disabled={showModal}
@@ -149,16 +167,15 @@ export default function QuizGame({ onExit }) {
               ))}
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {showModal && (
         <GameModal 
           result={gameResult}
-          onClose={handleNextQuestion}
-          explanation={currentExplanation}
-          isFinalQuestion={currentQuestion === quizQuestions[currentTheme].length - 1}
-          onExit={endGame}
+          onClose={gameResult === 'win' ? handleNext : endGame}
+          explanation={quizQuestions[currentTheme][currentQuestion].explanation}
+          reward={gameResult === 'win' ? quizThemes.find(t => t.id === currentTheme).reward : 0}
         />
       )}
     </div>

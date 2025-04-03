@@ -1,3 +1,15 @@
+.reward-message {
+  margin: 15px 0;
+  font-size: 1.1em;
+  color: #2ecc71;
+}
+
+.reward-amount {
+  font-weight: bold;
+  color: #f39c12;
+}
+
+
 .quiz-game-container {
     padding: 20px;
     text-align: center;
