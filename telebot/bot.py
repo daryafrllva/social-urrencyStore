@@ -8,7 +8,7 @@ from telebot import types
 from telebot.util import smart_split
 
 from database import *
-from keyboards import admin_keyboard, menu_keyboard
+from keyboards import admin_keyboard, menu_keyboard, cancel_keyboard
 
 bot = telebot.TeleBot("7714684338:AAEynrLWSJNoMWcMgWTvZIOakF_pFc4WZ6s")
 logger = telebot.logger
@@ -107,7 +107,6 @@ def show_document(message):
 def show_menu(message):
     conn = create_connection()
     user_role = get_user_role(conn, message.chat.id)
-    print(user_role)
     bot.send_message(message.chat.id, "👇 Выберите действие:",
                      reply_markup=menu_keyboard if user_role == 'пользователь' else admin_keyboard)
 
@@ -141,14 +140,11 @@ def tasks(message):
 
 @bot.message_handler(func=lambda message: message.text == "🔄 Перевод")
 def transfer(message):
-    under_keyboard = types.InlineKeyboardMarkup(row_width=1)
-    cancel_button = types.InlineKeyboardButton('Отмена', callback_data='cancel')
-    under_keyboard.add(cancel_button)
     msg = bot.send_message(message.chat.id,
                            "Введите <b>ссылку</b> на пользователя, <b>сумму перевода</b> "
                            "и комментарий (опционально) через пробел:\n\nПример: @username 100 Спасибо за помощь)",
                            parse_mode='html',
-                           reply_markup=under_keyboard)
+                           reply_markup=cancel_keyboard)
     bot.register_next_step_handler(msg, process_transfer_amount)
 
 
@@ -364,7 +360,6 @@ def cancel_purchase(call):
     bot.answer_callback_query(call.id, "❌ Покупка отменена")
 
 
-# !!!
 @bot.callback_query_handler(func=lambda call: call.data == 'cancel')
 def cancel_action(call):
     bot.clear_step_handler_by_chat_id(call.message.chat.id)
@@ -438,13 +433,9 @@ def take_fine(message):
     user_role = get_user_role(conn, message.chat.id)
 
     if user_role == 'администратор':
-        fine_keyboard = types.InlineKeyboardMarkup(row_width=1)
-        cancel_button = types.InlineKeyboardButton('Отмена', callback_data='cancel')
-        fine_keyboard.add(cancel_button)
-
         msg = bot.send_message(message.chat.id, 'Введите ссылку на пользователя, '
                                                 'количество изымаемой валюты и комментарий через пробел.'
-                                                '\n\nПример: @test 1000 Плохо себя вёл!', reply_markup=fine_keyboard)
+                                                '\n\nПример: @test 1000 Плохо себя вёл!', reply_markup=cancel_keyboard)
         bot.register_next_step_handler(msg, take_fine_by_user_link)
     else:
         bot.send_message(message.chat.id, 'У вас нет доступа к этому функционалу.',
@@ -481,15 +472,11 @@ def take_fine_by_user_link(message):
 
 @bot.message_handler(func=lambda message: message.text == "⏱️ Сменить время бонуса")
 def change_bonus_time(message):
-    change_keyboard = types.InlineKeyboardMarkup(row_width=1)
-    cancel_button = types.InlineKeyboardButton('Отмена', callback_data='cancel')
-    change_keyboard.add(cancel_button)
-
     word_minute = word_for_count("минута", "минуты", "минут", constants["fake_bonus_time"])
 
     bot.send_message(message.chat.id, f'Текущий период зачисления: {constants["fake_bonus_time"]} {word_minute}.'
                                       f'\n\nВведите новое время <b>в минутах</b> (число):',
-                     reply_markup=change_keyboard,
+                     reply_markup=cancel_keyboard,
                      parse_mode='html')
     bot.register_next_step_handler(message, do_change_time)
 
@@ -534,11 +521,30 @@ def periodic_bonus():
 def get_users_for_admin(message):
     conn = create_connection()
     users = get_users(conn)
-    list_string = '\n'.join([f'ID: {user[0]}, ссылка: @{user[1]}, роль: {get_role_name(conn, user[4])}' for user in users])
+    list_string = '\n'.join(
+        [f'ID: {user[0]}, ссылка: @{user[1]}, роль: {get_role_name(conn, user[4])}' for user in users])
     list_string = smart_split(list_string)
     for msg in list_string:
         bot.send_message(message.chat.id, msg)
 
+
+@bot.message_handler(func=lambda message: message.text == "📥 Новый администратор")
+def make_admin(message):
+    bot.send_message(message.chat.id, "Введите ссылку на пользователя:\n\n"
+                                      "Пример: <b>@test</b>",
+                     parse_mode='html',
+                     reply_markup=cancel_keyboard)
+    bot.register_next_step_handler(message, make_admin_by_link)
+
+
+def make_admin_by_link(message):
+    conn = create_connection()
+    result = make_user_admin(conn, message.text.strip('@'))
+    bot.send_message(message.chat.id, result)
+    if '❌' in result:
+        return
+    bot.send_message(get_user_from_link(conn, message.text.strip('@'))[0],
+                     'Вам выдали права администратора! Напишите Меню, чтобы обновить клавиатуру меню.')
 
 
 if __name__ == "__main__":
