@@ -219,7 +219,7 @@ def get_role_name(conn, role: int):  # получить текстовое на�
 
 
 def get_user_role(conn, user_id: int):  # получить текстовое название роли пользователя
-    return get_role_name(conn, get_user(conn, user_id)[4])[0]
+    return get_role_name(conn, get_user(conn, user_id)[4])
 
 
 def update_user_role(conn, user_id, role_id):

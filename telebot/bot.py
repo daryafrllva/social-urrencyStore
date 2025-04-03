@@ -9,7 +9,7 @@ from telebot.util import smart_split
 from database import *
 from keyboards import admin_keyboard, menu_keyboard, cancel_keyboard
 
-bot = telebot.TeleBot("7783814922:AAHnHN_U8YlVTuxu8jKkMsqzZ4Gxz3Nh_k0")
+bot = telebot.TeleBot("7714684338:AAEynrLWSJNoMWcMgWTvZIOakF_pFc4WZ6s")
 logger = telebot.logger
 telebot.logger.setLevel(logging.DEBUG)
 
@@ -106,6 +106,7 @@ def show_document(message):
 def show_menu(message):
     conn = create_connection()
     user_role = get_user_role(conn, message.chat.id)
+    print(user_role)
     bot.send_message(message.chat.id, "👇 Выберите действие:",
                      reply_markup=menu_keyboard if user_role == 'пользователь' else admin_keyboard)
 
