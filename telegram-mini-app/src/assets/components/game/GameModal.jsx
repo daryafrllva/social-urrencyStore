@@ -1,4 +1,4 @@
-export default function GameModal({ result, onClose }) {
+export default function GameModal({ result, onClose, explanation }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -13,8 +13,14 @@ export default function GameModal({ result, onClose }) {
               >
                 Забрать приз
               </button>
-            </div>
+              </div>
+            {explanation && (
+              <div className="modal-explanation">
+                <p>{explanation}</p>
+              </div>
+            )}
           </>
+            
         ) : (
           <>
             <h2>Увы! 😕</h2>
@@ -27,6 +33,11 @@ export default function GameModal({ result, onClose }) {
                 В главное меню
               </button>
             </div>
+            {explanation && (
+              <div className="modal-explanation">
+                <p>{explanation}</p>
+              </div>
+            )}
           </>
         )}
       </div>
