@@ -18,14 +18,13 @@ h1 {
 
 /* Стили для отображения баланса */
 .tg-balance {
-  position: absolute;
-  top: 15px;
-  right: 15px;
   display: flex;
+  justify-self: right;
   align-items: center;
   gap: 10px;
   background: var(--tg-theme-secondary-bg-color, #f4f4f4);
   padding: 8px 12px;
+  margin: 2%;
   border-radius: 20px;
   font-weight: bold;
 }
@@ -49,7 +48,7 @@ h1 {
   min-height: 100vh;
   display: flex;
   height: auto;
-  /* background-color: #0063DE; */
+  background-color: #0063DE;
   /* Светлый фон */
   font-family: Arial, sans-serif;
   width: auto;
@@ -129,6 +128,18 @@ h1 {
   text-align: center;
 }
 
+.tasks__more h2 {
+  display: flex;
+  background-color: #fff;
+  width: 25%;
+  height: 65px;
+  justify-self: center;
+  justify-content: center;
+  border-radius: 73.02px;
+  font-size: 20px;
+  align-items: center;
+}
+
 /* КОНЕЦ Стилей для больших кнопок выбора игр */
 
 .home-screen {
@@ -138,13 +149,12 @@ h1 {
   height: 1472.15px;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 59px;
+  /* padding-top: 59px; */
 }
 
 /* Стиль для кнопок */
 .game-button {
-  background-color: #4fa3e5;
-  /* Голубой цвет */
+  background-color: #127BFF;
   color: white;
   border: none;
   padding: 10px 20px;

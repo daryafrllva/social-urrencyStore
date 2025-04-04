@@ -1,22 +1,10 @@
-<<<<<<< HEAD
 /* Стиль для компонента игры */
 /* Общие стили для игры */
-=======
-.tg-close-btn {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  background: var(--tg-theme-button-color, #50a8eb);
-  color: var(--tg-theme-button-text-color, #fff);
-  border: none;
-  padding: 8px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  z-index: 1000;
+
+h3 {
+  color: white;
 }
 
-  /* Общие стили для игры */
->>>>>>> 30c821c9113b4e4ffa855aec6228930a13d070c4
 .game-container {
   max-width: 600px;
   margin: 0 auto;
@@ -25,27 +13,68 @@
   font-family: Arial, sans-serif;
 }
 
+.back-button {
+  background-color: #ffffff;
+  color: #0063DE;
+  border: none;
+  padding: 10px 20px;
+  margin-top: 10%;
+  font-size: 30px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  align-self: center;
+}
+
+.game-controls {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  width: auto;
+  background-color: #FFF;
+  border-radius: 73px;
+  align-items: center;
+  margin: 48px 0 73px 0;
+}
+
+.variant {
+  width: auto;
+  background-color: #0063DE;
+  margin: 75px;
+  border-radius: 58px;
+  font-size: 25px;
+  font-weight: bolder;
+  padding: 110px;
+  /* height: 50px; */
+  /* justify-self: center; */
+}
+
 /* Кнопки выбора */
 .choices-container {
+  width: 400px;
   display: flex;
   gap: 15px;
   justify-content: center;
-  margin: 30px 0;
+  flex-direction: column;
+  margin: 30px 70px 77px 71px;
+  /* align-self: center; */
 }
 
 .choice-button {
+  background-color: #0063DE;
+  color: #FFF;
+  width: auto;
   font-size: 2rem;
   padding: 15px;
   border: none;
   border-radius: 10px;
-  background: #f0f0f0;
   cursor: pointer;
   transition: transform 0.2s, background 0.2s;
 }
 
 .choice-button:hover {
   transform: scale(1.1);
-  background: #e0e0e0;
+  background: #4fa3e5;
 }
 
 /* Результат */
@@ -53,16 +82,16 @@
   margin-top: 20px;
 }
 
-.result-победа {
+.result-win {
   color: #dbe54f;
 }
 
-.result-поражение {
+.result-lose {
   color: #e74c3c;
 }
 
-.result-ничья {
-  color: #3498db;
+.result-nothing {
+  color: #163346;
 }
 
 /* Кнопки действий */

@@ -14,8 +14,13 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .modal-content {
@@ -32,11 +37,12 @@
 }
 
 @keyframes slideUp {
-  from { 
+  from {
     transform: translateY(20px);
     opacity: 0;
   }
-  to { 
+
+  to {
     transform: translateY(0);
     opacity: 1;
   }
@@ -139,85 +145,91 @@
     padding: 1.5rem;
     margin: 0 15px;
   }
-  
+
   .modal-button {
     padding: 0.6rem 1.2rem;
     min-width: 100px;
   }
 }
 
-
 .coin-game-container {
-    max-width: 400px;
-    margin: 0 auto;
-    padding: 20px;
-    text-align: center;
-  }
-  
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin: 20px 0;
-  }
-  
-  .square {
-    width: 100px;
-    height: 100px;
-    background-color: #f0f0f0;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    cursor: pointer;
-    transition: all 0.3s;
-  }
-  
-  .square:hover {
-    background-color: #e0e0e0;
-  }
-  
-  .square.empty {
-    background-color: #4fa3e5;
-  }
-  
-  .square.checked {
-    background-color: #f44336;
-  }
-  
-  .square.coin {
-    background-color: #FFD700;
-  }
-  
-  .message {
-    font-size: 1.2rem;
-    margin: 15px 0;
-    min-height: 50px;
-  }
-  
-  .restart-button {
-    padding: 10px 20px;
-    background-color: #4fa3e5;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 1rem;
-    margin-top: 10px;
-  }
-  
-  .cooldown-message {
-    color: #f44336;
-    font-weight: bold;
-  }
-  
-  .exit-button {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-  }
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  width: auto;
+  background-color: #FFF;
+  border-radius: 73px;
+  align-items: center;
+  margin: 48px 0 73px 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 64px 71px 74px 71px;
+}
+
+.square {
+  width: 100px;
+  height: 100px;
+  background-color: #127BFF;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.square:hover {
+  background-color: #e0e0e0;
+}
+
+.square.empty {
+  background-color: #127BFF;
+}
+
+.square.checked {
+  background-color: #f44336;
+}
+
+.square.coin {
+  background-color: #FFD700;
+}
+
+.message {
+  font-size: 1.2rem;
+  margin: 15px 0;
+  min-height: 50px;
+}
+
+.restart-button {
+  padding: 10px 20px;
+  background-color: #4fa3e5;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  margin-top: 10px;
+}
+
+.cooldown-message {
+  color: #f44336;
+  font-weight: bold;
+}
+
+.exit-button {
+  background-color: #ffffff;
+  color: #0063DE;
+  border: none;
+  padding: 10px 20px;
+  margin-top: 10%;
+  font-size: 30px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  align-self: center;
+}

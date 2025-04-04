@@ -158,6 +158,9 @@ export default function App() {
                             Играть: Викторина
                     </button>
                 </div>
+                <div className="tasks__more">
+                  <h2>Больше заданий нет</h2>
+                </div>
             </div>
         );
     }

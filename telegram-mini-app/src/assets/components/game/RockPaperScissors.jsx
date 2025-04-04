@@ -79,7 +79,7 @@ export default function RockPaperScissors({ onExit, onWin }) {
   return (
     <div className="game-screen">
       {tgReady && (
-        <button 
+        <button
           onClick={() => window.Telegram.WebApp?.close()}
           className="tg-close-btn"
         >
@@ -91,7 +91,9 @@ export default function RockPaperScissors({ onExit, onWin }) {
         ← На главную
       </button>
 
-      <h1>Камень-Ножницы-Бумага</h1>
+      <h1>Камень 🪨<br />
+        Ножницы ✂️<br />
+        Бумага 📄</h1>
 
       {!result ? (
         <GameControls onChoice={handleChoice} />
@@ -112,4 +114,5 @@ export default function RockPaperScissors({ onExit, onWin }) {
       )}
     </div>
   );
+
 }

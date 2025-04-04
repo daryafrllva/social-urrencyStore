@@ -79,8 +79,8 @@ export default function CoinGame({ onExit, onWin }) {
         </button>
       )}
       
-      <button onClick={onExit} className="exit-button">
-        ← Назад
+      <button onClick={onExit} className="back-button">
+        ← На главную
       </button>
 
       <h2>Найди монетку!</h2>

@@ -3,13 +3,14 @@ export default function GameControls({ onChoice }) {
   
     return (
       <div className="game-controls">
-        <h3>Выберите вариант:</h3>
+        <div className="variant">
+          <h3>Выберите вариант:</h3>
+        </div>
         <div className="choices-container">
           {choices.map((choice) => (
-            <button
+            <button className="choice-button"
               key={choice}
               onClick={() => onChoice(choice)}
-              className="choice-button"
               aria-label={choice.replace(/[^а-яА-Я]/g, '')} // Для доступности (оставляем только текст)
             >
               {choice}
