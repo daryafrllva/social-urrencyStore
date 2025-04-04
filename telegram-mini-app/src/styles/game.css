@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 /* Стиль для компонента игры */
 /* Общие стили для игры */
 
@@ -6,24 +5,6 @@ h3 {
   color: white;
 }
 
-=======
-
-.tg-close-btn {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  background: var(--tg-theme-button-color, #50a8eb);
-  color: var(--tg-theme-button-text-color, #fff);
-  border: none;
-  padding: 8px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  z-index: 1000;
-}
-
-  /* Общие стили для игры */
-
->>>>>>> 259377c17b178eaaa9c6a17343a2ad3218d59c40
 .game-container {
   max-width: 600px;
   margin: 0 auto;
