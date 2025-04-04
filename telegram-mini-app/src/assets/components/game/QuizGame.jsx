@@ -113,17 +113,17 @@ export default function QuizGame({ onExit, onWin }) {
   return (
     <div className="quiz-game-container">
       {tgReady && (
-        <button 
-          onClick={() => window.Telegram?.WebApp?.close()}
-          className="tg-close-btn"
-        >
+        <button className="tg-close-btn"
+          onClick={() => window.Telegram?.WebApp?.close()}>
           Закрыть игру
         </button>
       )}
       
-      <button onClick={onExit} className="exit-button">
-        ← Назад
+      <button onClick={onExit} className="back-button">
+        ← На главную
       </button>
+
+      {/* <h1>Викторина</h1> */}
 
       {!currentTheme ? (
         <div className="theme-selection">

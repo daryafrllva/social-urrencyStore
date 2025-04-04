@@ -125,7 +125,7 @@ export default function App() {
                                 <img src="/images/Vector.png" alt="Тут молния" />
                             </div>
                             <div class="task__price">
-                                <p>500</p>
+                                <p>Награда: 500</p>
                             </div>
                         </div>
                     </div>
@@ -153,7 +153,7 @@ export default function App() {
                                 <img src="/images/Vector.png" alt="Тут молния" />
                             </div>
                             <div class="task__price">
-                                <p>500</p>
+                                <p>Награда: 500</p>
                             </div>
                         </div>
                     </div>
@@ -181,7 +181,7 @@ export default function App() {
                                 <img src="/images/Vector.png" alt="Тут молния" />
                             </div>
                             <div class="task__price">
-                                <p>500</p>
+                                <p>Награда: 500</p>
                             </div>
                         </div>
                     </div>
