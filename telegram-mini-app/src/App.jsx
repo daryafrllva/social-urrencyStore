@@ -122,7 +122,7 @@ export default function App() {
                         </div>
                         <div class="task__joule">
                             <div class="task__icon">
-                                <img src="/images/Vector.png" alt="Тут молния" />
+                                <img src="/images/Vector.png" alt="" />
                             </div>
                             <div class="task__price">
                                 <p>Награда: 500</p>
@@ -150,7 +150,7 @@ export default function App() {
                         </div>
                         <div class="task__joule">
                             <div class="task__icon">
-                                <img src="/images/Vector.png" alt="Тут молния" />
+                                <img src="/images/Vector.png" alt="" />
                             </div>
                             <div class="task__price">
                                 <p>Награда: 500</p>
@@ -178,7 +178,7 @@ export default function App() {
                         </div>
                         <div class="task__joule">
                             <div class="task__icon">
-                                <img src="/images/Vector.png" alt="Тут молния" />
+                                <img src="/images/Vector.png" alt="" />
                             </div>
                             <div class="task__price">
                                 <p>Награда: 500</p>
