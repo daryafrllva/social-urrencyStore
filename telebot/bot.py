@@ -87,7 +87,7 @@ def start(message):
     bot.send_message(message.chat.id, open('greeting.txt', 'r', encoding='UTF-8').read(), parse_mode='html')
     if not get_user(conn, message.chat.id):
         add_user(conn, message.chat.id, message.from_user.username)
-        update_balance(conn, message.chat.id, 100, 100)
+        update_balance(conn, message.chat.id, 1000, 1000)
         conn.close()
 
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
