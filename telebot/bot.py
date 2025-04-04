@@ -124,6 +124,20 @@ def show_menu(message):
                      reply_markup=menu_keyboard if user_role == 'пользователь' else admin_keyboard)
 
 
+@bot.message_handler(commands=['menu'])
+def show_menu_command(message):
+    conn = create_connection()
+    user_role = get_user_role(conn, message.chat.id)
+    bot.send_message(message.chat.id, "👇 Выберите действие:",
+                     reply_markup=admin_keyboard if user_role == 'администратор' else menu_keyboard)
+
+
+@bot.message_handler(commands=['help'])
+def show_help_command(message):
+    bot.send_message(message.chat.id, open('instruction_for_buttem_help.txt', 'r', encoding='UTF-8').read(),
+                     parse_mode='html')
+
+
 # функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "💰 Баланс")
 def balance(message):
