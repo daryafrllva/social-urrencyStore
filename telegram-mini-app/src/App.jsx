@@ -9,28 +9,60 @@ import './assets/fonts/fonts.css';
 export default function App() {
   const [currentGame, setCurrentGame] = useState(null);
   const [userBalance, setUserBalance] = useState(0); 
+  const [chatId, setChatId] = useState(null);
 
   useEffect(() => {
-    const tg = window.Telegram?.WebApp;
-    if (tg) {
-      tg.expand();
-      tg.enableClosingConfirmation();
-      console.log('Telegram WebApp initialized:', tg.initData);
-      
-      
-      if (tg.initDataUnsafe?.user) {
-        console.log('User data:', tg.initDataUnsafe.user);
+    // Пробуем получить chat_id из URL параметров
+    const params = new URLSearchParams(window.location.search);
+    const urlChatId = params.get('chat_id');
+    if (urlChatId) {
+      setChatId(urlChatId);
+    } else {
+      // Если нет в URL, пробуем получить из Telegram WebApp
+      const tg = window.Telegram?.WebApp;
+      if (tg) {
+        tg.expand();
+        tg.enableClosingConfirmation();
+        
+        if (tg.initDataUnsafe?.user) {
+          setChatId(tg.initDataUnsafe.user.id.toString());
+        } else if (tg.initDataUnsafe?.chat) {
+          setChatId(tg.initDataUnsafe.chat.id.toString());
+        }
       }
     }
   }, []);
-
- 
+  
   const sendDataToTelegram = (data) => {
     if (window.Telegram?.WebApp) {
-      window.Telegram.WebApp.sendData(JSON.stringify(data));
+      // Формируем данные для отправки на бэкенд
+      const backendData = {
+        user_id: parseInt(chatId), // Преобразуем в число для бэкенда
+        amount: data.amount,       // Сумма для изменения баланса
+        action: data.action,      // Действие (coins_earned и т.д.)
+        newBalance: data.newBalance // Новый баланс (опционально)
+      };
+      
+      // Отправляем данные в Telegram WebApp и на бэкенд
+      window.Telegram.WebApp.sendData(JSON.stringify(backendData));
+      
+      // Дополнительно можно отправить запрос напрямую на бэкенд
+      fetch('http://localhost:8000/api/update_balance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: parseInt(chatId),
+          amount: data.amount
+        })
+      })
+      .then(response => response.json())
+      .then(data => console.log('Balance updated:', data))
+      .catch(error => console.error('Error updating balance:', error));
     }
   };
-
+  
   const addCoins = (amount) => {
     setUserBalance(prev => {
       const newBalance = prev + amount;
@@ -172,3 +204,4 @@ export default function App() {
     </div>
   );
 }
+//в ссылке передаём две переменные 

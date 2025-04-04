@@ -18,7 +18,9 @@ init_db()
 
 constants = {'rating_size': 5,  # определяет размер рейтингового списка
              'bonus_period': 10,  # определяет время периода выдачи бонуса
-             'bonus_amount': 1000}
+             'bonus_amount': 1000,
+             'webapp_url': '8c60-115-37-139-49.ngrok-free.app'
+             }
 
 # Список товаров
 PRODUCTS = [
@@ -64,7 +66,6 @@ def word_for_count(nominative_singular: str = 'Джоуль',
                    genitive: str = 'Джоуля',
                    nominative_plural: str = 'Джоулей',
                    count: int = 1):
-
     """Функция, возвращающая правильную форму слова для конкретного количества
     на вход: именительный падеж, родительный падеж, именительный падеж во множественном числе, количество
 
@@ -86,7 +87,7 @@ def start(message):
     bot.send_message(message.chat.id, open('greeting.txt', 'r', encoding='UTF-8').read(), parse_mode='html')
     if not get_user(conn, message.chat.id):
         add_user(conn, message.chat.id, message.from_user.username)
-        update_balance(conn, message.chat.id, 100, 100)
+        update_balance(conn, message.chat.id, 1000, 1000)
         conn.close()
 
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
@@ -99,10 +100,13 @@ def start(message):
         bot.send_message(message.chat.id, 'Вход выполнен.')
         show_menu(message)
 
+
 # функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "🆘 Помощь")
 def show_document(message):
-    bot.send_message(message.chat.id, open('instruction_for_buttem_help.txt', 'r', encoding='UTF-8').read(), parse_mode='html')
+    bot.send_message(message.chat.id, open('instruction_for_buttem_help.txt', 'r', encoding='UTF-8').read(),
+                     parse_mode='html')
+
 
 # функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "📄 Пользовательское соглашение")
@@ -118,6 +122,20 @@ def show_menu(message):
     user_role = get_user_role(conn, message.chat.id)
     bot.send_message(message.chat.id, "👇 Выберите действие:",
                      reply_markup=menu_keyboard if user_role == 'пользователь' else admin_keyboard)
+
+
+@bot.message_handler(commands=['menu'])
+def show_menu_command(message):
+    conn = create_connection()
+    user_role = get_user_role(conn, message.chat.id)
+    bot.send_message(message.chat.id, "👇 Выберите действие:",
+                     reply_markup=admin_keyboard if user_role == 'администратор' else menu_keyboard)
+
+
+@bot.message_handler(commands=['help'])
+def show_help_command(message):
+    bot.send_message(message.chat.id, open('instruction_for_buttem_help.txt', 'r', encoding='UTF-8').read(),
+                     parse_mode='html')
 
 
 # функция при нажатии на соответствующую кнопку
@@ -144,11 +162,13 @@ def balance(message):
 # функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "🎮 Игры")
 def tasks(message):
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("🗂 Перейти к заданиям", url="https://example.com/tasks"))
-    bot.send_message(message.chat.id, "Задания доступны в нашем веб-приложении:", reply_markup=markup)
+    webapp_url = f'https://{constants["webapp_url"]}?chat_id={message.chat.id}'
 
+    tasks_keyboard = types.InlineKeyboardMarkup()
+    tasks_keyboard.add(types.InlineKeyboardButton("🎮 Игры", web_app=types.WebAppInfo(url=webapp_url)))
 
+    bot.send_message(message.chat.id, "Играйте и зарабатывайте! Тратьте Джоули на переводы и покупки в магазине!",
+                     reply_markup=tasks_keyboard)
 
 
 @bot.message_handler(func=lambda message: message.text == "🔄 Перевод")
@@ -270,7 +290,7 @@ def confirm_transfer(call):
         return
 
     sender_id, recipient_id, amount, comment = pending_transfer[1], pending_transfer[2], pending_transfer[3], \
-    pending_transfer[4]
+        pending_transfer[4]
 
     # Получаем данные пользователей
     sender = get_user(conn, sender_id)
@@ -538,6 +558,7 @@ def purchase_history(message):
     # Разбиваем сообщение на части, если оно слишком длинное
     for part in smart_split(history_text):
         bot.send_message(message.chat.id, part, parse_mode="HTML")
+
 
 # функция при нажатии на соответствующую кнопку
 @bot.message_handler(func=lambda message: message.text == "😡 Выдать штраф")
